@@ -1,50 +1,78 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# YJWUJIAN Monitor Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Data-First Architecture
+- All functionality MUST be driven by data from the CBG API
+- Data models MUST be defined before implementation
+- API responses MUST be cached appropriately to reduce load
+- Raw API data MUST be preserved for audit and replay
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. Real-time Monitoring Philosophy
+- Price checks MUST be scheduled with configurable intervals
+- Alerts MUST be delivered within seconds of price threshold breach
+- System MUST handle network failures gracefully with retry logic
+- Rate limiting MUST be respected to avoid service disruption
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. User Experience Priority
+- Interface MUST be intuitive for non-technical users
+- Critical alerts MUST be prominent and actionable
+- Settings MUST be easy to configure without technical knowledge
+- Mobile-first design for monitoring on the go
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Privacy & Security
+- User credentials MUST be stored securely (encrypted at rest)
+- API calls MUST NOT expose sensitive user data in logs
+- Session management MUST handle token expiration gracefully
+- No data collection beyond what's necessary for monitoring
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Extensibility
+- Monitor types MUST be pluggable (price, availability, status)
+- Notification channels MUST be swappable (console, email, webhook)
+- Data storage MUST support multiple backends (SQLite, PostgreSQL)
+- API layer MUST be abstracted to support potential changes
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+## Technical Constraints
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### Technology Stack
+- Backend: Node.js with TypeScript for type safety
+- Frontend: React for responsive UI
+- Database: SQLite for local storage, configurable for cloud
+- Notifications: Multi-channel support (console, email, webhook)
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### Performance Standards
+- Price checks MUST complete within 10 seconds
+- UI MUST respond within 100ms for interactions
+- Memory usage MUST stay under 512MB for typical workloads
+- Database queries MUST use indexes for common access patterns
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### Reliability Requirements
+- System MUST recover from network failures automatically
+- Data MUST persist across application restarts
+- Alerts MUST not be lost due to system restarts
+- Configuration MUST be version-controlled
+
+## Development Workflow
+
+### Testing Requirements
+- Unit tests for all data transformation logic
+- Integration tests for API interactions
+- E2E tests for critical user journeys
+- Mock API responses for development
+
+### Code Quality
+- TypeScript strict mode enabled
+- ESLint + Prettier for code consistency
+- No `any` types without justification
+- All public APIs must be documented
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This constitution supersedes all other practices. Amendments require:
+1. Documentation of the change rationale
+2. Review of impact on existing features
+3. Migration plan for any breaking changes
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+All development decisions must align with these principles. When in doubt, prioritize user experience and data integrity.
+
+**Version**: 1.0.0 | **Ratified**: 2026-02-15 | **Last Amended**: 2026-02-15
