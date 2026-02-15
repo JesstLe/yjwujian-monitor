@@ -183,6 +183,34 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+// Get sub-item listings for a specific equip type
+router.get('/type/:id/listings', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { searchType = 'role_skin', page = 1, sort = 'price ASC' } = req.query;
+
+    const result = await cbgClient.getEquipListByType(
+      id,
+      String(searchType),
+      Number(page),
+      15, // Default count
+      String(sort)
+    );
+
+    res.json({
+      success: true,
+      data: result.items,
+      meta: {
+        page: Number(page),
+        isLastPage: result.isLastPage,
+      },
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ success: false, error: message });
+  }
+});
+
 router.get('/:id/history', (req, res) => {
   try {
     const { id } = req.params;

@@ -58,6 +58,15 @@ export const api = {
 
     getHistory: (id: string, days: number = 30) =>
       fetchApi<PriceHistoryPoint[]>(`/items/${id}/history?days=${days}`),
+
+    getListings: (id: string, params?: { searchType?: string; page?: number; sort?: string }) => {
+      const { searchType, page, sort } = params || {};
+      const queryParams = new URLSearchParams();
+      if (searchType) queryParams.append('searchType', searchType);
+      if (page) queryParams.append('page', String(page));
+      if (sort) queryParams.append('sort', sort);
+      return fetchApiWithMeta<Item[]>(`/items/type/${id}/listings?${queryParams}`);
+    },
   },
 
   watchlist: {

@@ -62,6 +62,43 @@ interface CBGListResponse {
   };
 }
 
+// Recommend API response types (Sub-item listings)
+export interface CBGRecommendItem {
+  serverid: number;
+  equipid: number;
+  eid: string;
+  game_ordersn: string;
+  price: number; // Unit: cents
+  collect_num: number;
+  server_name: string;
+  kindid: number;
+  status: number;
+  selling_time: string;
+  equip_type: string;
+  format_equip_name: string;
+  other_info: {
+    basic_attrs: string[]; // e.g. ["编号: Y001573"]
+    capture_url?: string[];
+    variation_info?: {
+      variation_id: string;
+      variation_name: string;
+      variation_quality: string; // e.g. "5-5-3-1"
+      variation_unlock: string;
+      variation_unlock_num: number;
+      red_star_num: number;
+    };
+  };
+}
+
+interface CBGRecommendResponse {
+  status: number;
+  status_code: string;
+  result: CBGRecommendItem[];
+  paging: {
+    is_last_page: boolean;
+  };
+}
+
 // Category mapping based on search_type (string or number) and kindId
 const SEARCH_TYPE_MAP: Record<string, ItemCategory> = {
   '1': 'hero_skin',
@@ -397,6 +434,94 @@ class CBGClient {
     }
 
     return null;
+  }
+
+  /**
+   * Get sub-item listings for a specific equip type
+   * @param equipType The aggregate item type ID (e.g. 3402116 for 通天狐妖)
+   * @param searchType The search type string (e.g. 'role_skin')
+   */
+  async getEquipListByType(
+    equipType: string,
+    searchType: string,
+    page: number = 1,
+    count: number = 15,
+    orderBy: string = 'price ASC'
+  ): Promise<{ items: Item[]; isLastPage: boolean }> {
+    await this.waitForRateLimit();
+
+    const params = new URLSearchParams();
+    params.append('client_type', 'h5');
+    params.append('act', 'recommd_by_role');
+    params.append('equip_type', equipType);
+    params.append('search_type', searchType);
+    params.append('page', page.toString());
+    params.append('count', count.toString());
+    params.append('order_by', orderBy);
+
+    try {
+      const response = await this.client.post<CBGRecommendResponse>('/cgi-bin/recommend.py', params, {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      });
+
+      if (response.data.status !== 1) {
+        throw new Error(`API Error: ${response.data.status_code}`);
+      }
+
+      const items = response.data.result.map((item) => this.transformRecommendItem(item, searchType));
+
+      return {
+        items,
+        isLastPage: response.data.paging.is_last_page,
+      };
+    } catch (error) {
+      console.error('Failed to fetch sub-item list:', error);
+      throw error;
+    }
+  }
+
+  private transformRecommendItem(item: CBGRecommendItem, searchType: string): Item {
+    // Extract serial number from basic_attrs
+    let serialNum: string | null = null;
+    if (item.other_info.basic_attrs) {
+      const serialAttr = item.other_info.basic_attrs.find(attr => attr.includes('编号'));
+      if (serialAttr) {
+        serialNum = serialAttr.split(':')[1]?.trim() || null;
+      }
+    }
+
+    // Parse star grid from variation_quality
+    // quality string format: "5-5-3-1" -> [5, 5, 3, 1]
+    const qualityStr = item.other_info?.variation_info?.variation_quality || '';
+    const qualities = qualityStr.split('-').map(Number);
+    const starGrid: StarGrid = {
+      color: qualities[0] || 0,
+      style: qualities[1] || 0,
+      special: qualities[2] || 0,
+      // The 4th value might be another slot, for now just map 3 slots to standard StarGrid
+    };
+
+    return {
+      id: item.equipid.toString(), // Individual item ID
+      name: item.format_equip_name,
+      imageUrl: item.other_info.capture_url?.[0] || null,
+      captureUrls: item.other_info.capture_url || [],
+      serialNum,
+      category: SEARCH_TYPE_MAP[searchType] || 'item',
+      rarity: item.other_info?.variation_info?.red_star_num ? 'red' : 'gold', // Heuristic: has red stars -> red rarity
+      hero: null, // Listings don't always have this info easily accessible, relies on aggregate context
+      weapon: null,
+      starGrid,
+      currentPrice: item.price, // Unit: cents
+      sellerName: null, // Not in listing response
+      status: item.status === 2 ? 'normal' : 'sold',
+      collectCount: item.collect_num,
+      lastCheckedAt: new Date(),
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
   }
 
   /**

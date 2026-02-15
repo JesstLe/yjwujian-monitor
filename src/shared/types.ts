@@ -102,6 +102,7 @@ export interface ApiResponse<T> {
     limit: number;
     pageCount: number;
     cached?: boolean;
+    isLastPage?: boolean;
   };
 }
 

@@ -1,10 +1,11 @@
-import { useState, useCallback, useRef, useEffect } from 'react';
 import type { Item } from '@shared/types';
+import { Link } from 'react-router-dom';
 
 interface ItemCardProps {
   item: Item;
   onAddToWatchlist?: (item: Item) => void;
   showActions?: boolean;
+  isListing?: boolean;
 }
 
 const Icons = {
@@ -25,94 +26,9 @@ const Icons = {
   ),
 };
 
-// 3D旋转预览组件：鼠标悬停时自动播放32帧旋转动画
-function CapturePreview({ captureUrls, fallbackUrl, alt }: {
-  captureUrls: string[];
-  fallbackUrl: string | null;
-  alt: string;
-}) {
-  const [currentFrame, setCurrentFrame] = useState(0);
-  const [isHovering, setIsHovering] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const hasCapture = captureUrls.length > 0;
+import CapturePreview from './CapturePreview';
 
-  // 预加载所有帧
-  useEffect(() => {
-    if (hasCapture) {
-      captureUrls.forEach((url) => {
-        const img = new Image();
-        img.src = url;
-      });
-    }
-  }, [captureUrls, hasCapture]);
-
-  // 鼠标悬停时自动播放旋转动画
-  const handleMouseEnter = useCallback(() => {
-    if (!hasCapture) return;
-    setIsHovering(true);
-    intervalRef.current = setInterval(() => {
-      setCurrentFrame((prev) => (prev + 1) % captureUrls.length);
-    }, 80); // 约12.5fps，流畅旋转
-  }, [captureUrls.length, hasCapture]);
-
-  const handleMouseLeave = useCallback(() => {
-    setIsHovering(false);
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    setCurrentFrame(0);
-  }, []);
-
-  // 清理定时器
-  useEffect(() => {
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, []);
-
-  const displayUrl = hasCapture
-    ? captureUrls[currentFrame]
-    : fallbackUrl;
-
-  if (!displayUrl) {
-    // 无图片时显示占位符
-    return (
-      <div className="w-full aspect-square bg-slate-800/50 flex items-center justify-center">
-        <span className="text-4xl opacity-20">🎮</span>
-      </div>
-    );
-  }
-
-  return (
-    <div
-      className="relative w-full aspect-square overflow-hidden bg-slate-900/50"
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      <img
-        src={displayUrl}
-        alt={alt}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? 'opacity-100' : 'opacity-0'}`}
-        onLoad={() => setImageLoaded(true)}
-        loading="lazy"
-      />
-      {!imageLoaded && (
-        <div className="absolute inset-0 loading-skeleton" />
-      )}
-      {/* 3D旋转指示器 */}
-      {hasCapture && isHovering && (
-        <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 text-xs text-cyan-400 backdrop-blur-sm">
-          {Icons.cube}
-          <span>3D</span>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default function ItemCard({ item, onAddToWatchlist, showActions = true }: ItemCardProps) {
+export default function ItemCard({ item, onAddToWatchlist, showActions = true, isListing = false }: ItemCardProps) {
   // 格式化价格：分转元
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
 
@@ -147,18 +63,36 @@ export default function ItemCard({ item, onAddToWatchlist, showActions = true }:
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${rarity.barColor} opacity-60`} />
 
       {/* 预览图区域 */}
-      <CapturePreview
-        captureUrls={item.captureUrls}
-        fallbackUrl={item.imageUrl}
-        alt={item.name}
-      />
+      {isListing ? (
+        <CapturePreview
+          captureUrls={item.captureUrls}
+          fallbackUrl={item.imageUrl}
+          alt={item.name}
+        />
+      ) : (
+        <Link to={`/item/${item.id}`} className="block relative">
+          <CapturePreview
+            captureUrls={item.captureUrls}
+            fallbackUrl={item.imageUrl}
+            alt={item.name}
+          />
+        </Link>
+      )}
 
       <div className="p-4">
         {/* 名称 + 稀有度 */}
         <div className="flex items-start justify-between gap-3 mb-2">
-          <h3 className="font-medium text-slate-200 line-clamp-1 flex-1" title={item.name}>
-            {item.name}
-          </h3>
+          {isListing ? (
+            <h3 className="font-medium text-slate-200 line-clamp-1 flex-1" title={item.name}>
+              {item.name}
+            </h3>
+          ) : (
+            <Link to={`/item/${item.id}`} className="flex-1 min-w-0" title={item.name}>
+              <h3 className="font-medium text-slate-200 line-clamp-1 group-hover:text-cyan-400 transition-colors">
+                {item.name}
+              </h3>
+            </Link>
+          )}
           <span className={`flex-shrink-0 px-2 py-0.5 text-xs font-semibold rounded border ${rarity.badgeClass}`}>
             {rarity.label}
           </span>
@@ -191,14 +125,14 @@ export default function ItemCard({ item, onAddToWatchlist, showActions = true }:
           <p className="text-xl font-bold text-cyan-400">
             {formatPrice(item.currentPrice)}
           </p>
-          {typeof item.collectCount === 'number' && item.collectCount > 0 ? (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
+          {isListing ? (
+            <span className="flex items-center gap-1 text-xs text-slate-500" title="收藏人数">
               {Icons.heart}
               {item.collectCount}
             </span>
-          ) : typeof item.collectCount === 'string' && (
-            <span className="flex items-center gap-1 text-xs text-slate-500">
-              在售 {item.collectCount}
+          ) : (
+            <span className="text-slate-400 text-xs text-right">
+              {item.collectCount}{typeof item.collectCount === 'number' ? '人在售' : '在售'}
             </span>
           )}
         </div>
