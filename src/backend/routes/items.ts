@@ -17,7 +17,7 @@ router.get('/search', async (req, res) => {
     };
 
     const kindId = category ? kindIdMap[category as ItemCategory] : 3;
-    
+
     let items: Item[] = [];
     let total = 0;
     let pageCount = 0;
@@ -30,9 +30,9 @@ router.get('/search', async (req, res) => {
       pageCount = result.pageCount;
     } catch (cbgError) {
       upstreamError = cbgError instanceof Error ? cbgError.message : 'CBG upstream request failed';
-      
+
       const cacheCategory = (category as string) || 'hero_skin';
-      
+
       const cachedRows = db.prepare(`
         SELECT * FROM items 
         WHERE category = ?
@@ -41,6 +41,8 @@ router.get('/search', async (req, res) => {
       `).all(cacheCategory, Number(limit), (Number(page) - 1) * Number(limit)) as {
         id: string;
         name: string;
+        image_url: string | null;
+        capture_urls: string | null;
         serial_num: string | null;
         category: string;
         rarity: string;
@@ -59,6 +61,8 @@ router.get('/search', async (req, res) => {
       items = cachedRows.map((row) => ({
         id: row.id,
         name: row.name,
+        imageUrl: row.image_url,
+        captureUrls: row.capture_urls ? JSON.parse(row.capture_urls) : [],
         serialNum: row.serial_num,
         category: row.category as ItemCategory,
         rarity: row.rarity as 'gold' | 'red',
@@ -123,27 +127,31 @@ router.get('/:id', async (req, res) => {
     const cached = db
       .prepare(`SELECT * FROM items WHERE id = ?`)
       .get(id) as {
-      id: string;
-      name: string;
-      serial_num: string | null;
-      category: string;
-      rarity: string;
-      hero: string | null;
-      weapon: string | null;
-      star_grid: string;
-      current_price: number;
-      seller_name: string | null;
-      status: string;
-      collect_count: number;
-      last_checked_at: string | null;
-      created_at: string;
-      updated_at: string;
-    } | undefined;
+        id: string;
+        name: string;
+        image_url: string | null;
+        capture_urls: string | null;
+        serial_num: string | null;
+        category: string;
+        rarity: string;
+        hero: string | null;
+        weapon: string | null;
+        star_grid: string;
+        current_price: number;
+        seller_name: string | null;
+        status: string;
+        collect_count: number;
+        last_checked_at: string | null;
+        created_at: string;
+        updated_at: string;
+      } | undefined;
 
     if (cached) {
       const item: Item = {
         id: cached.id,
         name: cached.name,
+        imageUrl: cached.image_url,
+        captureUrls: cached.capture_urls ? JSON.parse(cached.capture_urls) : [],
         serialNum: cached.serial_num,
         category: cached.category as ItemCategory,
         rarity: cached.rarity as 'gold' | 'red',
@@ -196,11 +204,11 @@ router.get('/:id/history', (req, res) => {
     `
       )
       .all(id, Number(days)) as {
-      date: string;
-      avg_price: number;
-      min_price: number;
-      max_price: number;
-    }[];
+        date: string;
+        avg_price: number;
+        min_price: number;
+        max_price: number;
+      }[];
 
     const history = rows.map((row) => ({
       date: row.date,

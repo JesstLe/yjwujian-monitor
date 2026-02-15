@@ -15,6 +15,8 @@ interface WatchlistRow {
   notes: string | null;
   added_at: string;
   item_name: string;
+  item_image_url: string | null;
+  item_capture_urls: string | null;
   item_serial_num: string | null;
   item_category: string;
   item_rarity: string;
@@ -40,6 +42,8 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
     item: {
       id: row.item_id,
       name: row.item_name,
+      imageUrl: row.item_image_url,
+      captureUrls: row.item_capture_urls ? JSON.parse(row.item_capture_urls) : [],
       serialNum: row.item_serial_num,
       category: row.item_category as Item['category'],
       rarity: row.item_rarity as Item['rarity'],
@@ -74,6 +78,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
   const existing = db.prepare(`SELECT * FROM items WHERE id = ?`).get(itemId) as {
     id: string;
     name: string;
+    image_url: string | null;
+    capture_urls: string | null;
     serial_num: string | null;
     category: string;
     rarity: string;
@@ -94,6 +100,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
       db.prepare(`
         UPDATE items SET
           name = ?,
+          image_url = ?,
+          capture_urls = ?,
           serial_num = ?,
           category = ?,
           rarity = ?,
@@ -109,6 +117,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
         WHERE id = ?
       `).run(
         incomingItem.name,
+        incomingItem.imageUrl,
+        JSON.stringify(incomingItem.captureUrls),
         incomingItem.serialNum,
         incomingItem.category,
         incomingItem.rarity,
@@ -125,6 +135,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
     return incomingItem || {
       id: existing.id,
       name: existing.name,
+      imageUrl: existing.image_url,
+      captureUrls: existing.capture_urls ? JSON.parse(existing.capture_urls) : [],
       serialNum: existing.serial_num,
       category: existing.category as Item['category'],
       rarity: existing.rarity as Item['rarity'],
@@ -148,11 +160,13 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
   }
 
   db.prepare(`
-    INSERT INTO items (id, name, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     resolvedItem.id,
     resolvedItem.name,
+    resolvedItem.imageUrl,
+    JSON.stringify(resolvedItem.captureUrls),
     resolvedItem.serialNum,
     resolvedItem.category,
     resolvedItem.rarity,
@@ -176,6 +190,8 @@ router.get('/', (_req, res) => {
       SELECT 
         w.*,
         i.name as item_name,
+        i.image_url as item_image_url,
+        i.capture_urls as item_capture_urls,
         i.serial_num as item_serial_num,
         i.category as item_category,
         i.rarity as item_rarity,
@@ -230,14 +246,14 @@ router.post('/', async (req, res) => {
     `
       )
       .get(itemId, groupId, targetPrice, alertEnabled ? 1 : 0, notes) as {
-      id: number;
-      item_id: string;
-      group_id: number;
-      target_price: number | null;
-      alert_enabled: number;
-      notes: string | null;
-      added_at: string;
-    };
+        id: number;
+        item_id: string;
+        group_id: number;
+        target_price: number | null;
+        alert_enabled: number;
+        notes: string | null;
+        added_at: string;
+      };
 
     res.status(201).json({
       success: true,

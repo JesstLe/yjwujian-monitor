@@ -11,6 +11,8 @@ export interface StarGrid {
 export interface Item {
   id: string;
   name: string;
+  imageUrl: string | null;       // 缩略图 URL
+  captureUrls: string[];          // 3D 旋转预览图数组（最多32张）
   serialNum: string | null;
   category: ItemCategory;
   rarity: ItemRarity;

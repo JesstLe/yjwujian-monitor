@@ -14,6 +14,10 @@ interface CBGEquipType {
   min_price: number;
   selling_count: number;
   search_type: number | string;
+  equip_type_list_img_url: string;   // 缩略图 URL
+  equip_type_capture_url: string[];  // 3D 旋转预览图数组
+  equip_type_view_url: string;
+  equip_type_3d_view_url: string;
 }
 
 interface CBGAggregateResponse {
@@ -80,11 +84,11 @@ function parseEquipTypeDesc(desc: string): {
   weapon: string | null;
 } {
   const parts = desc.split('|').map(p => p.trim()).filter(Boolean);
-  
+
   let rarity: ItemRarity = 'gold';
   let hero: string | null = null;
   let weapon: string | null = null;
-  
+
   // Check for rarity indicators - check ALL parts
   const fullDesc = desc.toLowerCase();
   if (fullDesc.includes('红') || fullDesc.includes('红武') || fullDesc.includes('红色')) {
@@ -92,7 +96,7 @@ function parseEquipTypeDesc(desc: string): {
   } else if (fullDesc.includes('金') || fullDesc.includes('金色') || fullDesc.includes('金武')) {
     rarity = 'gold';
   }
-  
+
   // Parse hero/weapon from pipe-separated parts
   // Pattern: "红 | 殷紫萍" means rarity=red, hero=殷紫萍
   // Pattern: "金 | 武器名" means rarity=gold, weapon=武器名
@@ -100,7 +104,7 @@ function parseEquipTypeDesc(desc: string): {
     const firstPart = parts[0];
     // If first part is just a rarity indicator (红/金), skip it
     const isRarityOnly = firstPart === '红' || firstPart === '金' || firstPart === '红色' || firstPart === '金色';
-    
+
     if (isRarityOnly && parts.length >= 2) {
       // Second part is the actual hero/weapon
       const secondPart = parts[1];
@@ -116,7 +120,7 @@ function parseEquipTypeDesc(desc: string): {
       }
     }
   }
-  
+
   if (parts.length >= 2) {
     const secondPart = parts[1];
     // If we didn't set hero from above, check if second part is weapon
@@ -126,7 +130,7 @@ function parseEquipTypeDesc(desc: string): {
       }
     }
   }
-  
+
   return { rarity, hero, weapon };
 }
 
@@ -178,7 +182,7 @@ class CBGClient {
    */
   private transformAggregateItem(equipType: CBGEquipType, requestedKindId?: number): Item {
     const { rarity, hero, weapon } = parseEquipTypeDesc(equipType.equip_type_desc);
-    
+
     // Determine category from search_type or requested kindId
     let category: ItemCategory;
     if (requestedKindId) {
@@ -197,13 +201,15 @@ class CBGClient {
     return {
       id: equipType.equip_type,
       name: equipType.equip_type_name,
+      imageUrl: equipType.equip_type_list_img_url || null,
+      captureUrls: equipType.equip_type_capture_url || [],
       serialNum: null,
       category,
       rarity,
       hero,
       weapon,
       starGrid,
-      currentPrice: equipType.min_price, // Already in cents
+      currentPrice: equipType.min_price, // 单位：分
       sellerName: null,
       status: 'normal',
       collectCount: equipType.selling_count,
@@ -226,6 +232,8 @@ class CBGClient {
     return {
       id: item.equipid,
       name: item.equip_name,
+      imageUrl: null,
+      captureUrls: [],
       serialNum: item.base_equip_info?.serial_num ?? null,
       category: getCategoryFromKindId(item.kindid),
       rarity: item.base_equip_info?.rarity === 1 ? 'red' : 'gold',
@@ -273,7 +281,7 @@ class CBGClient {
         return this.getItemsByCategoryLegacy(kindId, page, count);
       }
 
-      const items = response.data.equip_type_list.map((equipType) => 
+      const items = response.data.equip_type_list.map((equipType) =>
         this.transformAggregateItem(equipType, kindId)
       );
 
@@ -346,12 +354,12 @@ class CBGClient {
 
     for (const category of categories) {
       const kindId = kindIdMap[category];
-      
+
       // Search multiple pages per category (bounded)
       for (let page = 1; page <= MAX_LOOKUP_PAGES; page++) {
         try {
           const result = await this.getItemsByCategory(kindId, page, 20);
-          
+
           const found = result.items.find((item) => item.id === equipType);
           if (found) {
             return found;
@@ -372,7 +380,7 @@ class CBGClient {
         for (let page = 1; page <= MAX_LOOKUP_PAGES; page++) {
           try {
             const result = await this.getItemsByCategory(6, page, 20);
-            
+
             const found = result.items.find((item) => item.id === equipType);
             if (found) {
               return found;

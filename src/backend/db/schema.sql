@@ -5,6 +5,8 @@ PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL,
+  image_url TEXT,
+  capture_urls TEXT,              -- JSON 数组，存储3D预览图URL
   serial_num TEXT,
   category TEXT NOT NULL,
   rarity TEXT NOT NULL,

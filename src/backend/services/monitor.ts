@@ -11,7 +11,7 @@ function getIntervalFromSettings(): number {
     const row = db
       .prepare(`SELECT value FROM settings WHERE key = 'check_interval_minutes'`)
       .get() as { value: string } | undefined;
-    
+
     if (row?.value) {
       const parsed = parseInt(row.value, 10);
       return isNaN(parsed) || parsed <= 0 ? DEFAULT_INTERVAL_MINUTES : parsed;
@@ -24,10 +24,12 @@ function getIntervalFromSettings(): number {
 
 function upsertItem(item: Item): void {
   const stmt = db.prepare(`
-    INSERT INTO items (id, name, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
+      image_url = excluded.image_url,
+      capture_urls = excluded.capture_urls,
       current_price = excluded.current_price,
       seller_name = excluded.seller_name,
       status = excluded.status,
@@ -39,6 +41,8 @@ function upsertItem(item: Item): void {
   stmt.run(
     item.id,
     item.name,
+    item.imageUrl,
+    JSON.stringify(item.captureUrls),
     item.serialNum,
     item.category,
     item.rarity,
