@@ -32,6 +32,12 @@ CREATE TABLE IF NOT EXISTS groups (
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS settings (
+  key TEXT PRIMARY KEY,
+  value TEXT,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Default group
 INSERT OR IGNORE INTO groups (id, name, color) VALUES (1, '默认分组', '#3b82f6');
 

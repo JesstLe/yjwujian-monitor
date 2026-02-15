@@ -26,6 +26,15 @@ export interface Item {
   lastCheckedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  gameOrdersn: string | null;
+  rawDesc?: {
+    variation_id?: string;
+    variation_quality?: string;
+    counter_value?: number;
+    washed_count?: number;
+    collection_score?: number;
+    // Add other fields from equip_desc if needed
+  } | null;
 }
 
 export interface WatchlistGroup {

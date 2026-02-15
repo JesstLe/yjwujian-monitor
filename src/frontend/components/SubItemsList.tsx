@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import ItemCard from './ItemCard';
+import ItemDetailModal from './ItemDetailModal';
 import { api } from '../services/api';
 import type { Item } from '@shared/types';
 
@@ -23,6 +24,18 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
     const [hasMore, setHasMore] = useState(false);
     const [sort, setSort] = useState('price ASC');
     const [error, setError] = useState<string | null>(null);
+    const [selectedItem, setSelectedItem] = useState<Item | null>(null);
+    const [showDetail, setShowDetail] = useState(false);
+
+    const handleItemClick = (item: Item) => {
+        setSelectedItem(item);
+        setShowDetail(true);
+    };
+
+    const handleCloseDetail = () => {
+        setShowDetail(false);
+        setTimeout(() => setSelectedItem(null), 300); // Clear after fade out
+    };
 
     const fetchItems = useCallback(async (isLoadMore = false) => {
         if (isLoadMore) {
@@ -147,6 +160,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                                 key={item.id}
                                 item={item}
                                 onAddToWatchlist={handleAddToWatchlist}
+                                onClick={handleItemClick}
                                 isListing={true}
                             />
                         ))}
@@ -172,6 +186,12 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     )}
                 </>
             )}
+
+            <ItemDetailModal
+                isOpen={showDetail}
+                onClose={handleCloseDetail}
+                item={selectedItem}
+            />
         </div>
     );
 }

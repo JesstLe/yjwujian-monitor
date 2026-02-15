@@ -122,6 +122,8 @@ router.get('/search', async (req, res) => {
         lastCheckedAt: parseSqliteDateTime(row.last_checked_at),
         createdAt: parseRequiredSqliteDateTime(row.created_at),
         updatedAt: parseRequiredSqliteDateTime(row.updated_at),
+        gameOrdersn: null,
+        rawDesc: null,
       }));
     }
 
@@ -151,6 +153,18 @@ router.get('/search', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
+    const { ordersn } = req.query;
+
+    // Try to fetch live detail first if ordersn is provided or just by ID
+    try {
+      const liveDetail = await cbgClient.getItemDetail(id, ordersn as string);
+      if (liveDetail) {
+        res.json({ success: true, data: liveDetail });
+        return;
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch live detail for ${id}:`, e);
+    }
 
     const cached = db
       .prepare(`SELECT * FROM items WHERE id = ?`)
@@ -193,6 +207,8 @@ router.get('/:id', async (req, res) => {
         lastCheckedAt: parseSqliteDateTime(cached.last_checked_at),
         createdAt: parseRequiredSqliteDateTime(cached.created_at),
         updatedAt: parseRequiredSqliteDateTime(cached.updated_at),
+        gameOrdersn: null,
+        rawDesc: null,
       };
       res.json({ success: true, data: item });
       return;

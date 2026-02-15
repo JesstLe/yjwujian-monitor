@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 interface ItemCardProps {
   item: Item;
   onAddToWatchlist?: (item: Item) => void;
+  onClick?: (item: Item) => void;
   showActions?: boolean;
   isListing?: boolean;
 }
@@ -28,7 +29,7 @@ const Icons = {
 
 import CapturePreview from './CapturePreview';
 
-export default function ItemCard({ item, onAddToWatchlist, showActions = true, isListing = false }: ItemCardProps) {
+export default function ItemCard({ item, onAddToWatchlist, onClick, showActions = true, isListing = false }: ItemCardProps) {
   // 格式化价格：分转元
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
 
@@ -57,18 +58,29 @@ export default function ItemCard({ item, onAddToWatchlist, showActions = true, i
 
   const rarity = rarityConfig[item.rarity];
 
+  const handleClick = () => {
+    if (onClick) {
+      onClick(item);
+    }
+  };
+
   return (
-    <div className={`group relative rounded-xl bg-slate-900/40 border border-slate-800/50 ${rarity.borderHover} hover:bg-slate-800/40 transition-all duration-300 overflow-hidden ${rarity.glowClass}`}>
+    <div
+      onClick={onClick ? handleClick : undefined}
+      className={`group relative rounded-xl bg-slate-900/40 border border-slate-800/50 ${rarity.borderHover} hover:bg-slate-800/40 transition-all duration-300 overflow-hidden ${rarity.glowClass} ${onClick ? 'cursor-pointer' : ''}`}
+    >
       {/* 顶部稀有度指示条 */}
       <div className={`absolute top-0 left-0 right-0 h-0.5 ${rarity.barColor} opacity-60`} />
 
       {/* 预览图区域 */}
-      {isListing ? (
-        <CapturePreview
-          captureUrls={item.captureUrls}
-          fallbackUrl={item.imageUrl}
-          alt={item.name}
-        />
+      {isListing || onClick ? (
+        <div className="block relative">
+          <CapturePreview
+            captureUrls={item.captureUrls}
+            fallbackUrl={item.imageUrl}
+            alt={item.name}
+          />
+        </div>
       ) : (
         <Link to={`/item/${item.id}`} className="block relative">
           <CapturePreview
@@ -82,8 +94,8 @@ export default function ItemCard({ item, onAddToWatchlist, showActions = true, i
       <div className="p-4">
         {/* 名称 + 稀有度 */}
         <div className="flex items-start justify-between gap-3 mb-2">
-          {isListing ? (
-            <h3 className="font-medium text-slate-200 line-clamp-1 flex-1" title={item.name}>
+          {isListing || onClick ? (
+            <h3 className="font-medium text-slate-200 line-clamp-1 flex-1 group-hover:text-cyan-400 transition-colors" title={item.name}>
               {item.name}
             </h3>
           ) : (
@@ -140,7 +152,10 @@ export default function ItemCard({ item, onAddToWatchlist, showActions = true, i
         {/* 添加到监控按钮 */}
         {showActions && onAddToWatchlist && (
           <button
-            onClick={() => onAddToWatchlist(item)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onAddToWatchlist(item);
+            }}
             className="mt-3 w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 hover:text-cyan-300 text-sm font-medium rounded-lg border border-cyan-500/30 hover:border-cyan-500/50 transition-all duration-200 group/btn"
           >
             {Icons.plus}

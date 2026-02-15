@@ -56,7 +56,10 @@ export const api = {
       return fetchApiWithMeta<Item[]>(`/items/search?${searchParams}`);
     },
 
-    getById: (id: string) => fetchApi<Item>(`/items/${id}`),
+    getById: (id: string, ordersn?: string) => {
+      const url = ordersn ? `/items/${id}?ordersn=${ordersn}` : `/items/${id}`;
+      return fetchApi<Item>(url);
+    },
 
     getHistory: (id: string, days: number = 30) =>
       fetchApi<PriceHistoryPoint[]>(`/items/${id}/history?days=${days}`),
@@ -131,10 +134,14 @@ export const api = {
 
   settings: {
     get: () => fetchApi<Record<string, unknown>>('/settings'),
-
     update: (data: Record<string, unknown>) =>
       fetchApi<void>('/settings', {
         method: 'PUT',
+        body: JSON.stringify(data),
+      }),
+    testNotification: (data: { type: string; config: any }) =>
+      fetchApi('/settings/test', {
+        method: 'POST',
         body: JSON.stringify(data),
       }),
   },

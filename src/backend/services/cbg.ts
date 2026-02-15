@@ -253,6 +253,8 @@ class CBGClient {
       lastCheckedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      gameOrdersn: null,
+      rawDesc: null,
     };
   }
 
@@ -265,6 +267,20 @@ class CBGClient {
       style: item.base_equip_info?.star_grid?.[1] ?? 0,
       special: item.base_equip_info?.star_grid?.[2],
     };
+
+    let rawDesc = null;
+    try {
+      // equip_desc is sometimes a JSON string in other_info or directly on item in detail response
+      const desc = (item as any).equip_desc;
+      if (desc && typeof desc === 'string') {
+        const parsed = JSON.parse(desc);
+        if (parsed.raw_content) {
+          rawDesc = parsed.raw_content;
+        }
+      }
+    } catch (e) {
+      console.error('Failed to parse equip_desc', e);
+    }
 
     return {
       id: item.equipid,
@@ -284,6 +300,8 @@ class CBGClient {
       lastCheckedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      gameOrdersn: (item as any).game_ordersn || null,
+      rawDesc,
     };
   }
 
@@ -385,7 +403,7 @@ class CBGClient {
    */
   async getItemById(equipType: string): Promise<Item | null> {
     // First, try to get detail directly (if that endpoint exists)
-    const detailItem = await this.getItemDetailById(equipType);
+    const detailItem = await this.getItemDetail(equipType);
     if (detailItem) {
       return detailItem;
     }
@@ -530,20 +548,25 @@ class CBGClient {
       lastCheckedAt: new Date(),
       createdAt: new Date(),
       updatedAt: new Date(),
+      gameOrdersn: item.game_ordersn || null, // Capture ordersn for detail fetching
+      rawDesc: null, // Detail not present in recommend list
     };
   }
 
   /**
    * Try to get item detail directly (for more info)
    */
-  private async getItemDetailById(equipId: string): Promise<Item | null> {
+  async getItemDetail(equipId: string, ordersn?: string): Promise<Item | null> {
     await this.waitForRateLimit();
 
-    const params = {
+    const params: any = {
       client_type: 'h5',
       equipid: equipId,
       gameid: 2,
     };
+    if (ordersn) {
+      params.ordersn = ordersn;
+    }
 
     try {
       const response = await this.client.get<{ result: boolean; data?: { equip?: CBGItem } }>('/cgi/api/get_equip_detail', { params });

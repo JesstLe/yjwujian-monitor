@@ -44,6 +44,11 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
     </svg>
   ),
+  send: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    </svg>
+  ),
 };
 
 export default function Settings() {
@@ -52,6 +57,11 @@ export default function Settings() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [testSending, setTestSending] = useState(false);
+
+  // Notification State
+  const [notifType, setNotifType] = useState<string>('bark');
+  const [url, setUrl] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -62,6 +72,21 @@ export default function Settings() {
         ]);
         setSettings(settingsData);
         setMonitorStatus(statusData);
+
+        // Parse notification config
+        if (settingsData.notification_type) {
+          setNotifType(String(settingsData.notification_type));
+        }
+        if (settingsData.notification_config) {
+          try {
+            const config = typeof settingsData.notification_config === 'string'
+              ? JSON.parse(settingsData.notification_config)
+              : settingsData.notification_config;
+            if (config.url) setUrl(config.url);
+          } catch (e) {
+            console.error('Failed to parse notif config', e);
+          }
+        }
       } finally {
         setLoading(false);
       }
@@ -73,12 +98,34 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      await api.settings.update(settings);
+      const updates = {
+        ...settings,
+        notification_type: notifType,
+        notification_config: { url: url }
+      };
+      await api.settings.update(updates);
+      setSettings(updates);
       alert('设置已保存');
     } catch {
       alert('保存失败');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTestNotification = async () => {
+    if (!url) {
+      alert('请先填写 Webhook 地址');
+      return;
+    }
+    setTestSending(true);
+    try {
+      await api.settings.testNotification({ type: notifType, config: { url } });
+      alert('测试通知已发送，请检查接收端');
+    } catch (e) {
+      alert('发送失败: ' + (e instanceof Error ? e.message : String(e)));
+    } finally {
+      setTestSending(false);
     }
   };
 
@@ -195,7 +242,53 @@ export default function Settings() {
             {Icons.bell}
             通知设置
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-6">
+            <div className="flex flex-col gap-4">
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">通知通道</label>
+                <select
+                  value={notifType}
+                  onChange={(e) => setNotifType(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50"
+                >
+                  <option value="bark">Bark (iOS)</option>
+                  <option value="feishu">飞书 Webhook</option>
+                  <option value="dingtalk">钉钉 Webhook</option>
+                  <option value="custom">自定义 Webhook</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm text-slate-400 mb-2">
+                  {notifType === 'bark' ? 'Bark 服务器地址 (例如: https://api.day.app/YOUR_TOKEN/)' : 'Webhook URL'}
+                </label>
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder={
+                    notifType === 'bark' ? 'https://api.day.app/key/' :
+                      notifType === 'feishu' ? 'https://open.feishu.cn/open-apis/bot/v2/hook/...' :
+                        'https://example.com/webhook'
+                  }
+                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50 placeholder-slate-600"
+                />
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={handleTestNotification}
+                  disabled={testSending || !url}
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors disabled:opacity-50"
+                >
+                  {testSending ? (
+                    <span className="w-3 h-3 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                  ) : Icons.send}
+                  测试发送
+                </button>
+              </div>
+            </div>
+
             <label className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 cursor-pointer hover:bg-slate-800/50 transition-colors">
               <span className="text-sm text-slate-300">启用通知</span>
               <div className="relative">
@@ -204,21 +297,6 @@ export default function Settings() {
                   checked={settings.notification_enabled === true}
                   onChange={(e) =>
                     setSettings({ ...settings, notification_enabled: e.target.checked })
-                  }
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500" />
-              </div>
-            </label>
-
-            <label className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 cursor-pointer hover:bg-slate-800/50 transition-colors">
-              <span className="text-sm text-slate-300">通知声音</span>
-              <div className="relative">
-                <input
-                  type="checkbox"
-                  checked={settings.notification_sound === true}
-                  onChange={(e) =>
-                    setSettings({ ...settings, notification_sound: e.target.checked })
                   }
                   className="sr-only peer"
                 />

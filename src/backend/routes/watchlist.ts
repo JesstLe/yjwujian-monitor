@@ -57,6 +57,8 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
       lastCheckedAt: parseSqliteDateTime(row.item_last_checked_at),
       createdAt: new Date(),
       updatedAt: new Date(),
+      gameOrdersn: null,
+      rawDesc: null,
     },
     group: {
       id: row.group_id,
@@ -150,6 +152,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
       lastCheckedAt: parseSqliteDateTime(existing.last_checked_at),
       createdAt: parseRequiredSqliteDateTime(existing.created_at),
       updatedAt: parseRequiredSqliteDateTime(existing.updated_at),
+      gameOrdersn: null,
+      rawDesc: null,
     };
   }
 
