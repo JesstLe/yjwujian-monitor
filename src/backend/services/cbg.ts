@@ -293,11 +293,16 @@ class CBGClient {
   async getItemsByCategory(
     kindId: number,
     page: number = 1,
-    count: number = 15
+    count: number = 15,
+    filters?: {
+      keyword?: string;
+      priceMin?: number;
+      priceMax?: number;
+    }
   ): Promise<{ items: Item[]; total: number; pageCount: number }> {
     await this.waitForRateLimit();
 
-    const params = {
+    const params: Record<string, any> = {
       client_type: 'h5',
       count,
       page,
@@ -308,6 +313,10 @@ class CBGClient {
       page_session_id: this.generateSessionId(),
       traffic_trace: JSON.stringify({ field_id: '', content_id: '' }),
     };
+
+    if (filters?.keyword) params.keyword = filters.keyword;
+    if (filters?.priceMin) params.price_min = filters.priceMin * 100; // Convert to cents
+    if (filters?.priceMax) params.price_max = filters.priceMax * 100;
 
     try {
       // Try aggregate API first

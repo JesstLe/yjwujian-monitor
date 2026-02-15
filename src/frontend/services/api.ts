@@ -42,6 +42,8 @@ export const api = {
       q?: string;
       category?: string;
       rarity?: string;
+      minPrice?: number;
+      maxPrice?: number;
       page?: number;
       limit?: number;
     }) => {

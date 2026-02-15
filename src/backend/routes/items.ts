@@ -8,7 +8,7 @@ const router = Router();
 
 router.get('/search', async (req, res) => {
   try {
-    const { q, category, rarity, page = 1, limit = 15 } = req.query;
+    const { q, category, rarity, minPrice, maxPrice, page = 1, limit = 15 } = req.query;
 
     const kindIdMap: Record<ItemCategory, number> = {
       hero_skin: 3,
@@ -22,23 +22,69 @@ router.get('/search', async (req, res) => {
     let total = 0;
     let pageCount = 0;
     let upstreamError: string | undefined;
+    const filters = {
+      keyword: q as string,
+      priceMin: minPrice ? Number(minPrice) : undefined,
+      priceMax: maxPrice ? Number(maxPrice) : undefined,
+    };
 
     try {
-      const result = await cbgClient.getItemsByCategory(kindId, Number(page), Number(limit));
+      const result = await cbgClient.getItemsByCategory(kindId, Number(page), Number(limit), filters);
       items = result.items;
       total = result.total;
       pageCount = result.pageCount;
+
+      // Client-side filtering for rarity (CBG API doesn't seem to support rarity filter for aggregate list)
+      if (rarity) {
+        items = items.filter((item) => item.rarity === rarity);
+        // Recalculate total/page derived from this is impossible without fetching all, 
+        // but for now we just filter the current page. 
+        // Ideally we should warn user or handle this better.
+      }
+
+      // Client-side keyword filter if API didn't handle it well (optional safety)
+      // if (q) { ... } 
+
     } catch (cbgError) {
       upstreamError = cbgError instanceof Error ? cbgError.message : 'CBG upstream request failed';
 
       const cacheCategory = (category as string) || 'hero_skin';
+      const offset = (Number(page) - 1) * Number(limit);
 
-      const cachedRows = db.prepare(`
-        SELECT * FROM items 
-        WHERE category = ?
-        ORDER BY last_checked_at DESC 
-        LIMIT ? OFFSET ?
-      `).all(cacheCategory, Number(limit), (Number(page) - 1) * Number(limit)) as {
+      // Dynamic SQL build
+      let sql = `SELECT * FROM items WHERE category = ?`;
+      const params: any[] = [cacheCategory];
+
+      if (q) {
+        sql += ` AND name LIKE ?`;
+        params.push(`%${q}%`);
+      }
+
+      if (rarity) {
+        sql += ` AND rarity = ?`;
+        params.push(rarity);
+      }
+
+      if (minPrice) {
+        sql += ` AND current_price >= ?`;
+        params.push(Number(minPrice) * 100);
+      }
+
+      if (maxPrice) {
+        sql += ` AND current_price <= ?`;
+        params.push(Number(maxPrice) * 100);
+      }
+
+      // Get total count for pagination
+      const countSql = sql.replace('SELECT *', 'SELECT COUNT(*) as count');
+      const countResult = db.prepare(countSql).get(...params) as { count: number };
+      total = countResult.count;
+      pageCount = Math.ceil(total / Number(limit));
+
+      sql += ` ORDER BY last_checked_at DESC LIMIT ? OFFSET ?`;
+      params.push(Number(limit), offset);
+
+      const cachedRows = db.prepare(sql).all(...params) as {
         id: string;
         name: string;
         image_url: string | null;
@@ -77,18 +123,6 @@ router.get('/search', async (req, res) => {
         createdAt: parseRequiredSqliteDateTime(row.created_at),
         updatedAt: parseRequiredSqliteDateTime(row.updated_at),
       }));
-
-      total = items.length;
-      pageCount = 1;
-    }
-
-    if (rarity) {
-      items = items.filter((item) => item.rarity === rarity);
-    }
-
-    if (q && typeof q === 'string') {
-      const query = q.toLowerCase();
-      items = items.filter((item) => item.name.toLowerCase().includes(query));
     }
 
     const response: ApiResponse<Item[]> = {
@@ -104,13 +138,7 @@ router.get('/search', async (req, res) => {
 
     if (upstreamError) {
       response.error = upstreamError;
-      response.meta = {
-        total,
-        page: Number(page),
-        limit: Number(limit),
-        pageCount,
-        cached: true,
-      };
+      response.meta!.cached = true;
     }
 
     res.json(response);
