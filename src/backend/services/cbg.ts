@@ -1,9 +1,9 @@
-import axios, { AxiosInstance } from 'axios';
-import { v4 as uuidv4 } from 'uuid';
-import type { Item, ItemCategory, ItemRarity, StarGrid } from '@shared/types';
+import axios, { AxiosInstance } from "axios";
+import { v4 as uuidv4 } from "uuid";
+import type { Item, ItemCategory, ItemRarity, StarGrid } from "@shared/types";
 
-const CBG_BASE_URL = process.env.CBG_BASE_URL || 'https://yjwujian.cbg.163.com';
-const REQUEST_DELAY = parseInt(process.env.CBG_REQUEST_DELAY_MS || '1000', 10);
+const CBG_BASE_URL = process.env.CBG_BASE_URL || "https://yjwujian.cbg.163.com";
+const REQUEST_DELAY = parseInt(process.env.CBG_REQUEST_DELAY_MS || "1000", 10);
 const MAX_LOOKUP_PAGES = 10; // Bounded search for getItemById
 
 // New aggregate API response types
@@ -14,8 +14,8 @@ interface CBGEquipType {
   min_price: number;
   selling_count: number;
   search_type: number | string;
-  equip_type_list_img_url: string;   // 缩略图 URL
-  equip_type_capture_url: string[];  // 3D 旋转预览图数组
+  equip_type_list_img_url: string; // 缩略图 URL
+  equip_type_capture_url: string[]; // 3D 旋转预览图数组
   equip_type_view_url: string;
   equip_type_3d_view_url: string;
 }
@@ -101,18 +101,18 @@ interface CBGRecommendResponse {
 
 // Category mapping based on search_type (string or number) and kindId
 const SEARCH_TYPE_MAP: Record<string, ItemCategory> = {
-  '1': 'hero_skin',
-  'role_skin': 'hero_skin',
-  'hero': 'hero_skin',
-  '2': 'weapon_skin',
-  'weapon_skin': 'weapon_skin',
-  'weapon': 'weapon_skin',
-  '3': 'item',
-  '4': 'item',
-  '5': 'item',
-  '6': 'item',
-  'daoju': 'item',
-  'item': 'item',
+  "1": "hero_skin",
+  role_skin: "hero_skin",
+  hero: "hero_skin",
+  "2": "weapon_skin",
+  weapon_skin: "weapon_skin",
+  weapon: "weapon_skin",
+  "3": "item",
+  "4": "item",
+  "5": "item",
+  "6": "item",
+  daoju: "item",
+  item: "item",
 };
 
 function parseEquipTypeDesc(desc: string): {
@@ -120,18 +120,29 @@ function parseEquipTypeDesc(desc: string): {
   hero: string | null;
   weapon: string | null;
 } {
-  const parts = desc.split('|').map(p => p.trim()).filter(Boolean);
+  const parts = desc
+    .split("|")
+    .map((p) => p.trim())
+    .filter(Boolean);
 
-  let rarity: ItemRarity = 'gold';
+  let rarity: ItemRarity = "gold";
   let hero: string | null = null;
   let weapon: string | null = null;
 
   // Check for rarity indicators - check ALL parts
   const fullDesc = desc.toLowerCase();
-  if (fullDesc.includes('红') || fullDesc.includes('红武') || fullDesc.includes('红色')) {
-    rarity = 'red';
-  } else if (fullDesc.includes('金') || fullDesc.includes('金色') || fullDesc.includes('金武')) {
-    rarity = 'gold';
+  if (
+    fullDesc.includes("红") ||
+    fullDesc.includes("红武") ||
+    fullDesc.includes("红色")
+  ) {
+    rarity = "red";
+  } else if (
+    fullDesc.includes("金") ||
+    fullDesc.includes("金色") ||
+    fullDesc.includes("金武")
+  ) {
+    rarity = "gold";
   }
 
   // Parse hero/weapon from pipe-separated parts
@@ -140,19 +151,28 @@ function parseEquipTypeDesc(desc: string): {
   if (parts.length >= 1) {
     const firstPart = parts[0];
     // If first part is just a rarity indicator (红/金), skip it
-    const isRarityOnly = firstPart === '红' || firstPart === '金' || firstPart === '红色' || firstPart === '金色';
+    const isRarityOnly =
+      firstPart === "红" ||
+      firstPart === "金" ||
+      firstPart === "红色" ||
+      firstPart === "金色";
 
     if (isRarityOnly && parts.length >= 2) {
       // Second part is the actual hero/weapon
       const secondPart = parts[1];
-      if (secondPart.length >= 2 && !secondPart.includes('武器')) {
+      if (secondPart.length >= 2 && !secondPart.includes("武器")) {
         hero = secondPart;
       } else {
         weapon = secondPart;
       }
     } else if (!isRarityOnly) {
       // First part might be hero
-      if (firstPart.length >= 2 && !firstPart.includes('武器') && !firstPart.includes('剑') && !firstPart.includes('刀')) {
+      if (
+        firstPart.length >= 2 &&
+        !firstPart.includes("武器") &&
+        !firstPart.includes("剑") &&
+        !firstPart.includes("刀")
+      ) {
         hero = firstPart;
       }
     }
@@ -162,7 +182,11 @@ function parseEquipTypeDesc(desc: string): {
     const secondPart = parts[1];
     // If we didn't set hero from above, check if second part is weapon
     if (!weapon && !hero) {
-      if (secondPart.includes('武器') || secondPart.includes('剑') || secondPart.includes('刀')) {
+      if (
+        secondPart.includes("武器") ||
+        secondPart.includes("剑") ||
+        secondPart.includes("刀")
+      ) {
         weapon = secondPart;
       }
     }
@@ -175,14 +199,14 @@ function parseEquipTypeDesc(desc: string): {
 function getCategoryFromKindId(kindId: number): ItemCategory {
   switch (kindId) {
     case 3:
-      return 'hero_skin';
+      return "hero_skin";
     case 4:
-      return 'weapon_skin';
+      return "weapon_skin";
     case 5:
     case 6:
-      return 'item';
+      return "item";
     default:
-      return 'item';
+      return "item";
   }
 }
 
@@ -195,8 +219,9 @@ class CBGClient {
       baseURL: CBG_BASE_URL,
       timeout: 10000,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36',
-        'Accept': 'application/json',
+        "User-Agent":
+          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        Accept: "application/json",
       },
     });
   }
@@ -205,7 +230,9 @@ class CBGClient {
     const now = Date.now();
     const elapsed = now - this.lastRequestTime;
     if (elapsed < REQUEST_DELAY) {
-      await new Promise((resolve) => setTimeout(resolve, REQUEST_DELAY - elapsed));
+      await new Promise((resolve) =>
+        setTimeout(resolve, REQUEST_DELAY - elapsed),
+      );
     }
     this.lastRequestTime = Date.now();
   }
@@ -217,8 +244,13 @@ class CBGClient {
   /**
    * Transform aggregate equip type to Item
    */
-  private transformAggregateItem(equipType: CBGEquipType, requestedKindId?: number): Item {
-    const { rarity, hero, weapon } = parseEquipTypeDesc(equipType.equip_type_desc);
+  private transformAggregateItem(
+    equipType: CBGEquipType,
+    requestedKindId?: number,
+  ): Item {
+    const { rarity, hero, weapon } = parseEquipTypeDesc(
+      equipType.equip_type_desc,
+    );
 
     // Determine category from search_type or requested kindId
     let category: ItemCategory;
@@ -226,13 +258,12 @@ class CBGClient {
       category = getCategoryFromKindId(requestedKindId);
     } else {
       const searchKey = String(equipType.search_type);
-      category = SEARCH_TYPE_MAP[searchKey] || 'item';
+      category = SEARCH_TYPE_MAP[searchKey] || "item";
     }
 
     // Generate starGrid (placeholder for aggregate data)
     const starGrid: StarGrid = {
-      color: 0,
-      style: 0,
+      slots: [null, null, null, null],
     };
 
     return {
@@ -248,7 +279,7 @@ class CBGClient {
       starGrid,
       currentPrice: equipType.min_price, // 单位：分
       sellerName: null,
-      status: 'normal',
+      status: "normal",
       collectCount: equipType.selling_count,
       lastCheckedAt: new Date(),
       createdAt: new Date(),
@@ -263,23 +294,26 @@ class CBGClient {
    */
   private transformLegacyItem(item: CBGItem): Item {
     const starGrid: StarGrid = {
-      color: item.base_equip_info?.star_grid?.[0] ?? 0,
-      style: item.base_equip_info?.star_grid?.[1] ?? 0,
-      special: item.base_equip_info?.star_grid?.[2],
+      slots: [
+        item.base_equip_info?.star_grid?.[0] ?? null,
+        item.base_equip_info?.star_grid?.[1] ?? null,
+        item.base_equip_info?.star_grid?.[2] ?? null,
+        item.base_equip_info?.star_grid?.[3] ?? null,
+      ],
     };
 
     let rawDesc = null;
     try {
       // equip_desc is sometimes a JSON string in other_info or directly on item in detail response
       const desc = (item as any).equip_desc;
-      if (desc && typeof desc === 'string') {
+      if (desc && typeof desc === "string") {
         const parsed = JSON.parse(desc);
         if (parsed.raw_content) {
           rawDesc = parsed.raw_content;
         }
       }
     } catch (e) {
-      console.error('Failed to parse equip_desc', e);
+      console.error("Failed to parse equip_desc", e);
     }
 
     return {
@@ -289,13 +323,13 @@ class CBGClient {
       captureUrls: [],
       serialNum: item.base_equip_info?.serial_num ?? null,
       category: getCategoryFromKindId(item.kindid),
-      rarity: item.base_equip_info?.rarity === 1 ? 'red' : 'gold',
+      rarity: item.base_equip_info?.rarity === 1 ? "red" : "gold",
       hero: null,
       weapon: null,
       starGrid,
       currentPrice: item.unit_price,
       sellerName: item.seller_name,
-      status: item.is_draw === 1 ? 'draw' : 'normal',
+      status: item.is_draw === 1 ? "draw" : "normal",
       collectCount: item.collect_count ?? 0,
       lastCheckedAt: new Date(),
       createdAt: new Date(),
@@ -316,20 +350,20 @@ class CBGClient {
       keyword?: string;
       priceMin?: number;
       priceMax?: number;
-    }
+    },
   ): Promise<{ items: Item[]; total: number; pageCount: number }> {
     await this.waitForRateLimit();
 
     const params: Record<string, any> = {
-      client_type: 'h5',
+      client_type: "h5",
       count,
       page,
-      order_by: 'selling_time DESC',
+      order_by: "selling_time DESC",
       query_onsale: 1,
       kindid: kindId,
-      exter: 'direct',
+      exter: "direct",
       page_session_id: this.generateSessionId(),
-      traffic_trace: JSON.stringify({ field_id: '', content_id: '' }),
+      traffic_trace: JSON.stringify({ field_id: "", content_id: "" }),
     };
 
     if (filters?.keyword) params.keyword = filters.keyword;
@@ -338,15 +372,22 @@ class CBGClient {
 
     try {
       // Try aggregate API first
-      const response = await this.client.get<CBGAggregateResponse>('/cgi/api/get_aggregate_equip_type_list', { params });
+      const response = await this.client.get<CBGAggregateResponse>(
+        "/cgi/api/get_aggregate_equip_type_list",
+        { params },
+      );
 
-      if (response.data.status !== 0 && response.data.status !== 1 && response.data.status !== 200) {
+      if (
+        response.data.status !== 0 &&
+        response.data.status !== 1 &&
+        response.data.status !== 200
+      ) {
         // Try legacy API as fallback
         return this.getItemsByCategoryLegacy(kindId, page, count);
       }
 
       const items = response.data.equip_type_list.map((equipType) =>
-        this.transformAggregateItem(equipType, kindId)
+        this.transformAggregateItem(equipType, kindId),
       );
 
       return {
@@ -366,29 +407,34 @@ class CBGClient {
   private async getItemsByCategoryLegacy(
     kindId: number,
     page: number,
-    count: number
+    count: number,
   ): Promise<{ items: Item[]; total: number; pageCount: number }> {
     await this.waitForRateLimit();
 
     const params = {
-      client_type: 'h5',
+      client_type: "h5",
       count,
       page,
-      order_by: 'selling_time DESC',
+      order_by: "selling_time DESC",
       query_onsale: 1,
       kindid: kindId,
-      exter: 'direct',
+      exter: "direct",
       page_session_id: this.generateSessionId(),
-      traffic_trace: JSON.stringify({ field_id: '', content_id: '' }),
+      traffic_trace: JSON.stringify({ field_id: "", content_id: "" }),
     };
 
-    const response = await this.client.get<CBGListResponse>('/cgi/api/get_aggregate_equip_type_list', { params });
+    const response = await this.client.get<CBGListResponse>(
+      "/cgi/api/get_aggregate_equip_type_list",
+      { params },
+    );
 
     if (!response.data.result) {
-      throw new Error(response.data.error?.message || 'Failed to fetch items');
+      throw new Error(response.data.error?.message || "Failed to fetch items");
     }
 
-    const items = response.data.data.equip_list.map((item) => this.transformLegacyItem(item));
+    const items = response.data.data.equip_list.map((item) =>
+      this.transformLegacyItem(item),
+    );
 
     return {
       items,
@@ -409,7 +455,7 @@ class CBGClient {
     }
 
     // Bounded search across categories and pages
-    const categories: ItemCategory[] = ['hero_skin', 'weapon_skin', 'item'];
+    const categories: ItemCategory[] = ["hero_skin", "weapon_skin", "item"];
     const kindIdMap: Record<ItemCategory, number> = {
       hero_skin: 3,
       weapon_skin: 4,
@@ -440,7 +486,7 @@ class CBGClient {
       }
 
       // For 'item' category, also try kindId 6
-      if (category === 'item') {
+      if (category === "item") {
         for (let page = 1; page <= MAX_LOOKUP_PAGES; page++) {
           try {
             const result = await this.getItemsByCategory(6, page, 20);
@@ -473,61 +519,74 @@ class CBGClient {
     searchType: string,
     page: number = 1,
     count: number = 15,
-    orderBy: string = 'price ASC'
+    orderBy: string = "price ASC",
   ): Promise<{ items: Item[]; isLastPage: boolean }> {
     await this.waitForRateLimit();
 
     const params = new URLSearchParams();
-    params.append('client_type', 'h5');
-    params.append('act', 'recommd_by_role');
-    params.append('equip_type', equipType);
-    params.append('search_type', searchType);
-    params.append('page', page.toString());
-    params.append('count', count.toString());
-    params.append('order_by', orderBy);
+    params.append("client_type", "h5");
+    params.append("act", "recommd_by_role");
+    params.append("equip_type", equipType);
+    params.append("search_type", searchType);
+    params.append("page", page.toString());
+    params.append("count", count.toString());
+    params.append("order_by", orderBy);
 
     try {
-      const response = await this.client.post<CBGRecommendResponse>('/cgi-bin/recommend.py', params, {
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
+      const response = await this.client.post<CBGRecommendResponse>(
+        "/cgi-bin/recommend.py",
+        params,
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
         },
-      });
+      );
 
       if (response.data.status !== 1) {
         throw new Error(`API Error: ${response.data.status_code}`);
       }
 
-      const items = response.data.result.map((item) => this.transformRecommendItem(item, searchType));
+      const items = response.data.result.map((item) =>
+        this.transformRecommendItem(item, searchType),
+      );
 
       return {
         items,
         isLastPage: response.data.paging.is_last_page,
       };
     } catch (error) {
-      console.error('Failed to fetch sub-item list:', error);
+      console.error("Failed to fetch sub-item list:", error);
       throw error;
     }
   }
 
-  private transformRecommendItem(item: CBGRecommendItem, searchType: string): Item {
+  private transformRecommendItem(
+    item: CBGRecommendItem,
+    searchType: string,
+  ): Item {
     // Extract serial number from basic_attrs
     let serialNum: string | null = null;
     if (item.other_info.basic_attrs) {
-      const serialAttr = item.other_info.basic_attrs.find(attr => attr.includes('编号'));
+      const serialAttr = item.other_info.basic_attrs.find((attr) =>
+        attr.includes("编号"),
+      );
       if (serialAttr) {
-        serialNum = serialAttr.split(':')[1]?.trim() || null;
+        serialNum = serialAttr.split(":")[1]?.trim() || null;
       }
     }
 
     // Parse star grid from variation_quality
     // quality string format: "5-5-3-1" -> [5, 5, 3, 1]
-    const qualityStr = item.other_info?.variation_info?.variation_quality || '';
-    const qualities = qualityStr.split('-').map(Number);
+    const qualityStr = item.other_info?.variation_info?.variation_quality || "";
+    const qualities = qualityStr.split("-").map(Number);
     const starGrid: StarGrid = {
-      color: qualities[0] || 0,
-      style: qualities[1] || 0,
-      special: qualities[2] || 0,
-      // The 4th value might be another slot, for now just map 3 slots to standard StarGrid
+      slots: [
+        qualities[0] || null,
+        qualities[1] || null,
+        qualities[2] || null,
+        qualities[3] || null,
+      ],
     };
 
     return {
@@ -536,14 +595,14 @@ class CBGClient {
       imageUrl: item.other_info.capture_url?.[0] || null,
       captureUrls: item.other_info.capture_url || [],
       serialNum,
-      category: SEARCH_TYPE_MAP[searchType] || 'item',
-      rarity: item.other_info?.variation_info?.red_star_num ? 'red' : 'gold', // Heuristic: has red stars -> red rarity
+      category: SEARCH_TYPE_MAP[searchType] || "item",
+      rarity: item.other_info?.variation_info?.red_star_num ? "red" : "gold", // Heuristic: has red stars -> red rarity
       hero: null, // Listings don't always have this info easily accessible, relies on aggregate context
       weapon: null,
       starGrid,
       currentPrice: item.price, // Unit: cents
       sellerName: null, // Not in listing response
-      status: item.status === 2 ? 'normal' : 'sold',
+      status: item.status === 2 ? "normal" : "sold",
       collectCount: item.collect_num,
       lastCheckedAt: new Date(),
       createdAt: new Date(),
@@ -560,7 +619,7 @@ class CBGClient {
     await this.waitForRateLimit();
 
     const params: any = {
-      client_type: 'h5',
+      client_type: "h5",
       equipid: equipId,
       gameid: 2,
     };
@@ -569,7 +628,10 @@ class CBGClient {
     }
 
     try {
-      const response = await this.client.get<{ result: boolean; data?: { equip?: CBGItem } }>('/cgi/api/get_equip_detail', { params });
+      const response = await this.client.get<{
+        result: boolean;
+        data?: { equip?: CBGItem };
+      }>("/cgi/api/get_equip_detail", { params });
       if (!response.data.result || !response.data.data?.equip) {
         return null;
       }

@@ -1,18 +1,28 @@
-export type ItemCategory = 'hero_skin' | 'weapon_skin' | 'item';
-export type ItemRarity = 'gold' | 'red';
-export type ItemStatus = 'normal' | 'draw' | 'sold' | 'delisted';
+export type ItemCategory = "hero_skin" | "weapon_skin" | "item";
+export type ItemRarity = "gold" | "red";
+export type ItemStatus = "normal" | "draw" | "sold" | "delisted";
 
 export interface StarGrid {
-  color: number;
-  style: number;
-  special?: number;
+  slots: (number | null)[]; // [槽位1, 槽位2, 槽位3, 槽位4]
+}
+
+export interface StarGridFilters {
+  starLevel?: number;
+  slot1Min?: number;
+  slot1Max?: number;
+  slot2Min?: number;
+  slot2Max?: number;
+  slot3Min?: number;
+  slot3Max?: number;
+  slot4Min?: number;
+  slot4Max?: number;
 }
 
 export interface Item {
   id: string;
   name: string;
-  imageUrl: string | null;       // 缩略图 URL
-  captureUrls: string[];          // 3D 旋转预览图数组（最多32张）
+  imageUrl: string | null; // 缩略图 URL
+  captureUrls: string[]; // 3D 旋转预览图数组（最多32张）
   serialNum: string | null;
   category: ItemCategory;
   rarity: ItemRarity;
@@ -122,8 +132,8 @@ export const KIND_ID_MAP: Record<ItemCategory, number | number[]> = {
 };
 
 export const RARITY_MAP: Record<number, ItemRarity> = {
-  1: 'red',
-  2: 'gold',
+  1: "red",
+  2: "gold",
 };
 
 export const RARITY_TO_NUMBER: Record<ItemRarity, number> = {
