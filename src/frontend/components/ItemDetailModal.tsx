@@ -156,6 +156,41 @@ export default function ItemDetailModal({
                 </div>
 
                 <div className="flex-1">
+                  {/* 变体属性（颜色、狐尾等）*/}
+                  {detailedItem.variationInfo && detailedItem.variationInfo.attributes.length > 0 && (
+                    <div className="mb-4">
+                      <h4 className="text-lg font-semibold text-slate-200 flex items-center gap-2 border-l-4 border-cyan-500 pl-3 mb-3">
+                        变体属性
+                      </h4>
+                      <div className="grid grid-cols-2 gap-3">
+                        {detailedItem.variationInfo.attributes.map((attr, index) => (
+                          <div 
+                            key={index}
+                            className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors"
+                          >
+                            <div className="text-xs text-slate-500 mb-1">{attr.name}</div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl font-bold text-cyan-400">{attr.quality}</span>
+                              {attr.quality >= 5 && (
+                                <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
+                                  满品质
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {detailedItem.variationInfo.redStarNum > 0 && (
+                          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
+                            <div className="text-xs text-red-300 mb-1">红星</div>
+                            <div className="text-xl font-bold text-red-400">
+                              ★{detailedItem.variationInfo.redStarNum}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {loading ? (
                     <div className="h-full flex flex-col items-center justify-center py-12 space-y-3">
                       <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />

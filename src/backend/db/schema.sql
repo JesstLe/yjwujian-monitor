@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS items (
   hero TEXT,
   weapon TEXT,
   star_grid TEXT,
+  variation_info TEXT,            -- JSON 对象，存储谪星变体信息（颜色、狐尾等）
   current_price INTEGER,
   seller_name TEXT,
   status TEXT,

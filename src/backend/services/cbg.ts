@@ -1,6 +1,6 @@
 import axios, { AxiosInstance } from "axios";
 import { v4 as uuidv4 } from "uuid";
-import type { Item, ItemCategory, ItemRarity, StarGrid } from "@shared/types";
+import type { Item, ItemCategory, ItemRarity, StarGrid, VariationInfo, VariationAttribute } from "@shared/types";
 
 const CBG_BASE_URL = process.env.CBG_BASE_URL || "https://yjwujian.cbg.163.com";
 const REQUEST_DELAY = parseInt(process.env.CBG_REQUEST_DELAY_MS || "1000", 10);
@@ -210,6 +210,35 @@ function getCategoryFromKindId(kindId: number): ItemCategory {
   }
 }
 
+/**
+ * 解析谪星物品的变体信息
+ * 将 API 返回的 variation_info 转换为结构化的 VariationInfo 对象
+ */
+function parseVariationInfo(variationInfo: CBGRecommendItem["other_info"]["variation_info"]): VariationInfo | null {
+  if (!variationInfo) {
+    return null;
+  }
+
+  // 解析属性名称和品质值
+  const nameParts = variationInfo.variation_name.split("-");
+  const qualityParts = variationInfo.variation_quality.split("-");
+
+  const attributes: VariationAttribute[] = nameParts.map((name, index) => ({
+    name,
+    quality: parseInt(qualityParts[index] || "0", 10),
+  }));
+
+  return {
+    variationId: variationInfo.variation_id,
+    variationName: variationInfo.variation_name,
+    variationQuality: variationInfo.variation_quality,
+    variationUnlock: variationInfo.variation_unlock,
+    variationUnlockNum: variationInfo.variation_unlock_num,
+    redStarNum: variationInfo.red_star_num,
+    attributes,
+  };
+}
+
 class CBGClient {
   private client: AxiosInstance;
   private lastRequestTime = 0;
@@ -277,6 +306,7 @@ class CBGClient {
       hero,
       weapon,
       starGrid,
+      variationInfo: null, // 聚合数据中没有变体信息
       currentPrice: equipType.min_price, // 单位：分
       sellerName: null,
       status: "normal",
@@ -327,6 +357,7 @@ class CBGClient {
       hero: null,
       weapon: null,
       starGrid,
+      variationInfo: null, // Legacy API 中没有变体信息
       currentPrice: item.unit_price,
       sellerName: item.seller_name,
       status: item.is_draw === 1 ? "draw" : "normal",
@@ -576,6 +607,9 @@ class CBGClient {
       }
     }
 
+    // Parse variation info (颜色、狐尾等属性)
+    const variationInfo = parseVariationInfo(item.other_info.variation_info);
+
     // Parse star grid from variation_quality
     // quality string format: "5-5-3-1" -> [5, 5, 3, 1]
     const qualityStr = item.other_info?.variation_info?.variation_quality || "";
@@ -600,6 +634,7 @@ class CBGClient {
       hero: null, // Listings don't always have this info easily accessible, relies on aggregate context
       weapon: null,
       starGrid,
+      variationInfo,
       currentPrice: item.price, // Unit: cents
       sellerName: null, // Not in listing response
       status: item.status === 2 ? "normal" : "sold",

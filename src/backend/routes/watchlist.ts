@@ -21,6 +21,7 @@ interface WatchlistRow {
   item_category: string;
   item_rarity: string;
   item_star_grid: string;
+  item_variation_info: string | null;
   item_current_price: number;
   item_seller_name: string | null;
   item_status: string;
@@ -50,6 +51,7 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
       hero: null,
       weapon: null,
       starGrid: JSON.parse(row.item_star_grid),
+      variationInfo: row.item_variation_info ? JSON.parse(row.item_variation_info) : null,
       currentPrice: row.item_current_price,
       sellerName: row.item_seller_name,
       status: row.item_status as Item['status'],
@@ -88,6 +90,7 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
     hero: string | null;
     weapon: string | null;
     star_grid: string;
+    variation_info: string | null;
     current_price: number;
     seller_name: string | null;
     status: string;
@@ -110,6 +113,7 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
           hero = ?,
           weapon = ?,
           star_grid = ?,
+          variation_info = ?,
           current_price = ?,
           seller_name = ?,
           status = ?,
@@ -127,6 +131,7 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
         incomingItem.hero,
         incomingItem.weapon,
         JSON.stringify(incomingItem.starGrid),
+        incomingItem.variationInfo ? JSON.stringify(incomingItem.variationInfo) : null,
         incomingItem.currentPrice,
         incomingItem.sellerName,
         incomingItem.status,
@@ -145,6 +150,7 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
       hero: existing.hero,
       weapon: existing.weapon,
       starGrid: JSON.parse(existing.star_grid),
+      variationInfo: existing.variation_info ? JSON.parse(existing.variation_info) : null,
       currentPrice: existing.current_price,
       sellerName: existing.seller_name,
       status: existing.status as Item['status'],
@@ -164,8 +170,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
   }
 
   db.prepare(`
-    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, variation_info, current_price, seller_name, status, collect_count, last_checked_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
   `).run(
     resolvedItem.id,
     resolvedItem.name,
@@ -177,6 +183,7 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
     resolvedItem.hero,
     resolvedItem.weapon,
     JSON.stringify(resolvedItem.starGrid),
+    resolvedItem.variationInfo ? JSON.stringify(resolvedItem.variationInfo) : null,
     resolvedItem.currentPrice,
     resolvedItem.sellerName,
     resolvedItem.status,
@@ -200,6 +207,7 @@ router.get('/', (_req, res) => {
         i.category as item_category,
         i.rarity as item_rarity,
         i.star_grid as item_star_grid,
+        i.variation_info as item_variation_info,
         i.current_price as item_current_price,
         i.seller_name as item_seller_name,
         i.status as item_status,

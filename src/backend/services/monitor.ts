@@ -24,12 +24,13 @@ function getIntervalFromSettings(): number {
 
 function upsertItem(item: Item): void {
   const stmt = db.prepare(`
-    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, current_price, seller_name, status, collect_count, last_checked_at, updated_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, variation_info, current_price, seller_name, status, collect_count, last_checked_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     ON CONFLICT(id) DO UPDATE SET
       name = excluded.name,
       image_url = excluded.image_url,
       capture_urls = excluded.capture_urls,
+      variation_info = excluded.variation_info,
       current_price = excluded.current_price,
       seller_name = excluded.seller_name,
       status = excluded.status,
@@ -49,6 +50,7 @@ function upsertItem(item: Item): void {
     item.hero,
     item.weapon,
     JSON.stringify(item.starGrid),
+    item.variationInfo ? JSON.stringify(item.variationInfo) : null,
     item.currentPrice,
     item.sellerName,
     item.status,

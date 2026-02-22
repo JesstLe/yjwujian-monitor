@@ -132,6 +132,33 @@ export default function ItemCard({ item, onAddToWatchlist, onClick, showActions 
           )}
         </div>
 
+        {/* 变体属性（颜色、狐尾等）- 仅子物品显示 */}
+        {isListing && item.variationInfo && item.variationInfo.attributes.length > 0 && (
+          <div className="flex flex-wrap items-center gap-1 mb-2">
+            {item.variationInfo.attributes.map((attr, index) => (
+              <span 
+                key={index}
+                className="px-1.5 py-0.5 text-xs rounded bg-slate-700/50 text-slate-300 border border-slate-600/50"
+                title={`${attr.name}: ${attr.quality}`}
+              >
+                {attr.name} {attr.quality}
+              </span>
+            ))}
+            {item.variationInfo.redStarNum > 0 && (
+              <span className="px-1.5 py-0.5 text-xs rounded bg-red-500/10 text-red-400 border border-red-500/30">
+                ★{item.variationInfo.redStarNum}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* 编号 - 仅子物品显示 */}
+        {isListing && item.serialNum && (
+          <div className="text-xs text-slate-500 mb-2">
+            编号: {item.serialNum}
+          </div>
+        )}
+
         {/* 价格 + 在售数量 */}
         <div className="flex items-center justify-between pt-3 border-t border-slate-800/50">
           <p className="text-xl font-bold text-cyan-400">
