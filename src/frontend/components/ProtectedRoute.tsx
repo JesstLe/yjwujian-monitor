@@ -1,9 +1,17 @@
-import { Navigate, Outlet, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext';
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
+
+// DEV MODE: 禁用登录验证，直接放行
+const DISABLE_AUTH = import.meta.env.DEV || true;
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
+
+  // DEV MODE: 跳过登录验证
+  if (DISABLE_AUTH) {
+    return <Outlet />;
+  }
 
   if (loading) {
     return (

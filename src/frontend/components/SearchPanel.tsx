@@ -102,6 +102,7 @@ export default function SearchPanel() {
   const [rarity, setRarity] = useState<string>("");
   const [minPrice, setMinPrice] = useState<string>("");
   const [maxPrice, setMaxPrice] = useState<string>("");
+  const [seller, setSeller] = useState<string>("");
 
   const [variationUnlockLevel, setVariationUnlockLevel] = useState<string>("");
 
@@ -126,6 +127,7 @@ export default function SearchPanel() {
         variationUnlockLevel: variationUnlockLevel
           ? Number(variationUnlockLevel)
           : undefined,
+        seller: seller || undefined,
         page,
         limit: 15,
       });
@@ -136,7 +138,16 @@ export default function SearchPanel() {
     } finally {
       setLoading(false);
     }
-  }, [query, category, rarity, minPrice, maxPrice, variationUnlockLevel, page]);
+  }, [
+    query,
+    category,
+    rarity,
+    minPrice,
+    maxPrice,
+    variationUnlockLevel,
+    seller,
+    page,
+  ]);
 
   // Debounce search
   useEffect(() => {
@@ -147,16 +158,24 @@ export default function SearchPanel() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [query, category, rarity, minPrice, maxPrice, variationUnlockLevel]);
+  }, [
+    query,
+    category,
+    rarity,
+    minPrice,
+    maxPrice,
+    variationUnlockLevel,
+    seller,
+  ]);
 
-  const handleAddToWatchlist = async (item: Item) => {
+  const handleAddToWatchlist = useCallback(async (item: Item) => {
     try {
       await api.watchlist.add({ itemId: item.id, item });
       // Could show toast here
     } catch (error) {
       alert(error instanceof Error ? error.message : "添加失败");
     }
-  };
+  }, []);
 
   const categories: { value: ItemCategory; label: string }[] = [
     { value: "hero_skin", label: "英雄皮肤" },
@@ -186,88 +205,109 @@ export default function SearchPanel() {
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Sidebar Filters */}
-      <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
+      <aside className="w-full lg:w-72 flex-shrink-0 space-y-6">
         {/* Category Filter */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">
             物品分类
           </h3>
-          <div className="space-y-1">
+          <div className="space-y-2">
             {categories.map((cat) => (
               <button
                 key={cat.value}
                 onClick={() => setCategory(cat.value)}
-                className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${
+                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
                   category === cat.value
-                    ? "bg-blue-50 text-blue-600 border border-blue-200"
-                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 border border-transparent"
+                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 hover:border-gray-200"
                 }`}
               >
                 {cat.label}
               </button>
             ))}
           </div>
+        </div>
 
-          <div className="mt-4 pl-3 border-l border-gray-200 space-y-2">
-            <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
-              <span className="text-amber-500">★</span>
-              星格（目录子筛选）
-            </label>
-            <select
-              value={variationUnlockLevel}
-              onChange={(e) => setVariationUnlockLevel(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-            >
-              {starUnlockOptions.map((option) => (
-                <option key={option.value || "all"} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
+        {/* Star Grid Filter - Separate Card */}
+        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
+            <span className="text-amber-500 text-lg">★</span>
+            星格筛选
+          </h3>
+          <select
+            value={variationUnlockLevel}
+            onChange={(e) => setVariationUnlockLevel(e.target.value)}
+            className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all cursor-pointer shadow-sm"
+          >
+            {starUnlockOptions.map((option) => (
+              <option key={option.value || "all"} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-amber-600/70 mt-3">筛选星格的解封状态</p>
+        </div>
+
+        {/* Seller Filter */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">
+            卖家
+          </h3>
+          <input
+            type="text"
+            placeholder="输入卖家名称..."
+            value={seller}
+            onChange={(e) => setSeller(e.target.value)}
+            className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+          />
         </div>
 
         {/* Price Filter */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
-            价格区间 (元)
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">
+            价格区间
           </h3>
-          <div className="flex items-center gap-2">
-            <input
-              type="number"
-              placeholder="最低"
-              value={minPrice}
-              onChange={(e) => setMinPrice(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-            />
-            <span className="text-gray-400">-</span>
-            <input
-              type="number"
-              placeholder="最高"
-              value={maxPrice}
-              onChange={(e) => setMaxPrice(e.target.value)}
-              className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-            />
+          <div className="flex items-center gap-3">
+            <div className="flex-1">
+              <input
+                type="number"
+                placeholder="最低价"
+                value={minPrice}
+                onChange={(e) => setMinPrice(e.target.value)}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+              />
+            </div>
+            <span className="text-gray-300 text-lg">—</span>
+            <div className="flex-1">
+              <input
+                type="number"
+                placeholder="最高价"
+                value={maxPrice}
+                onChange={(e) => setMaxPrice(e.target.value)}
+                className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
+              />
+            </div>
           </div>
+          <p className="text-xs text-gray-400 mt-3">单位：人民币（元）</p>
         </div>
 
         {/* Rarity Filter */}
-        <div className="space-y-3">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">
             稀有度
           </h3>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {rarities.map((r) => (
               <label
                 key={r.value}
-                className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all shadow-sm ${
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                   rarity === r.value
-                    ? `bg-white ${r.color}`
-                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                    ? `border-current ${r.color} bg-gradient-to-r from-white to-gray-50 shadow-sm`
+                    : "border-gray-100 bg-white text-gray-600 hover:border-gray-200 hover:bg-gray-50"
                 }`}
               >
                 <div
-                  className={`w-4 h-4 rounded border flex items-center justify-center ${
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
                     rarity === r.value
                       ? "bg-current border-current"
                       : "border-gray-300"
@@ -304,7 +344,7 @@ export default function SearchPanel() {
       <main className="flex-1 min-w-0">
         {/* Search Bar */}
         <div className="relative mb-6">
-          <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
+          <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-400">
             {Icons.search}
           </div>
           <input
@@ -312,48 +352,51 @@ export default function SearchPanel() {
             placeholder={`在 ${categories.find((c) => c.value === category)?.label} 中搜索...`}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 bg-gray-50 border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all shadow-sm"
+            className="w-full pl-12 pr-5 py-4 bg-white border border-gray-200 rounded-2xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all shadow-sm hover:shadow-md"
           />
         </div>
 
         {/* Results Header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-gray-900 font-medium">
+        <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center gap-3">
             {meta?.cached && (
-              <span className="mr-2 px-2 py-0.5 rounded text-xs bg-amber-50 text-amber-600 border border-amber-200">
+              <span className="px-3 py-1 rounded-lg text-xs font-medium bg-amber-50 text-amber-600 border border-amber-200">
                 本地缓存
               </span>
             )}
-            {loading ? "搜索中..." : `找到 ${meta?.total || 0} 个物品`}
-          </h2>
+            <h2 className="text-gray-800 font-semibold text-lg">
+              {loading ? "搜索中..." : `找到 ${meta?.total || 0} 个物品`}
+            </h2>
+          </div>
         </div>
 
         {/* Results Grid */}
         {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div
                 key={i}
-                className="aspect-[4/5] rounded-2xl bg-gray-100 animate-pulse"
+                className="aspect-[4/5] rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 animate-pulse"
               />
             ))}
           </div>
         ) : items.length === 0 ? (
-          <div className="text-center py-20 rounded-2xl bg-gray-50 border border-gray-200 border-dashed">
-            <div className="inline-flex items-center justify-center w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl mb-4 text-blue-300">
+          <div className="text-center py-20 rounded-3xl bg-gradient-to-br from-gray-50 to-white border border-gray-200 border-dashed">
+            <div className="inline-flex items-center justify-center w-28 h-28 bg-gradient-to-br from-blue-100 to-indigo-150 rounded-3xl mb-5 text-blue-400 shadow-inner">
               {Icons.empty}
             </div>
-            <p className="text-lg font-medium text-gray-700">
+            <p className="text-xl font-semibold text-gray-700 mb-2">
               没有找到匹配的物品
             </p>
-            <p className="text-sm mt-1 text-gray-500">
+            <p className="text-sm text-gray-500">
               尝试更换关键词或清除筛选条件
             </p>
             {(query ||
               rarity ||
               minPrice ||
               maxPrice ||
-              variationUnlockLevel) && (
+              variationUnlockLevel ||
+              seller) && (
               <button
                 onClick={() => {
                   setQuery("");
@@ -361,15 +404,16 @@ export default function SearchPanel() {
                   setMinPrice("");
                   setMaxPrice("");
                   setVariationUnlockLevel("");
+                  setSeller("");
                 }}
-                className="mt-6 px-4 py-2 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-xl transition-colors"
+                className="mt-8 px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-md shadow-blue-500/25 transition-all"
               >
                 清除所有筛选
               </button>
             )}
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in relative">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in relative">
             {items.map((item) => (
               <ItemCard
                 key={item.id}
@@ -382,24 +426,31 @@ export default function SearchPanel() {
 
         {/* Pagination */}
         {meta && meta.pageCount > 1 && (
-          <div className="flex items-center justify-center gap-4 pt-8 border-t border-gray-200 mt-8">
+          <div className="flex items-center justify-center gap-3 pt-10 mt-10 border-t border-gray-100">
             <button
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page === 1}
-              className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
             >
+              {Icons.chevronLeft}
               上一页
             </button>
-            <span className="text-gray-500 text-sm">
-              第 <span className="text-gray-900 font-medium">{page}</span> /{" "}
-              {meta.pageCount} 页
-            </span>
+            <div className="px-5 py-2.5 bg-gray-50 rounded-xl">
+              <span className="text-gray-500 text-sm">
+                第 <span className="text-gray-800 font-semibold">{page}</span> /{" "}
+                <span className="text-gray-800 font-semibold">
+                  {meta.pageCount}
+                </span>{" "}
+                页
+              </span>
+            </div>
             <button
               onClick={() => setPage((p) => Math.min(meta.pageCount, p + 1))}
               disabled={page === meta.pageCount}
-              className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shadow-sm"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm"
             >
               下一页
+              {Icons.chevronRight}
             </button>
           </div>
         )}

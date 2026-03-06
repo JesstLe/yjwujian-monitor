@@ -17,8 +17,14 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     ...options,
   });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+  }
 
   const data = await response.json();
 
@@ -37,8 +43,14 @@ async function fetchApiWithMeta<T>(
     headers: {
       "Content-Type": "application/json",
     },
+    credentials: "include",
     ...options,
   });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`HTTP ${response.status}: ${text || response.statusText}`);
+  }
 
   const data = await response.json();
 

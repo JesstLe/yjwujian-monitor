@@ -1,33 +1,21 @@
 import { Router } from "express";
 import db from "../db/index";
 import cbgClient from "../services/cbg";
-import type { ApiResponse, Item, ItemCategory, VariationInfo } from "@shared/types";
+import type {
+  ApiResponse,
+  Item,
+  ItemCategory,
+  VariationInfo,
+} from "@shared/types";
 import {
   parseSqliteDateTime,
   parseRequiredSqliteDateTime,
 } from "../utils/date-utils";
+import { parseStarGrid, safeCollectCount } from "../utils/star-grid";
 
 const router = Router();
 
-// Convert old star_grid format to new slots format
-// Old: {"color":0,"style":0} or {"color":4,"style":4,"special":1}
-// New: {"slots":[0,0,null,null]}
-function parseStarGrid(starGridJson: string): { slots: (number | null)[] } {
-  const parsed = JSON.parse(starGridJson);
-  // If already in new format, return as-is
-  if (parsed.slots) {
-    return parsed;
-  }
-  // Convert old format to new slots format
-  return {
-    slots: [
-      parsed.color ?? null,
-      parsed.style ?? null,
-      parsed.special ?? null,
-      null, // No 4th slot in old format
-    ],
-  };
-}
+
 
 function filterByStarGrid(
   item: { starGrid: { slots: (number | null)[] } },
@@ -104,6 +92,7 @@ router.get("/search", async (req, res) => {
       minPrice,
       maxPrice,
       variationUnlockLevel,
+      seller,
       page = 1,
       limit = 15,
       starLevel,
@@ -136,6 +125,7 @@ router.get("/search", async (req, res) => {
       variationUnlockLevel: variationUnlockLevel
         ? Number(variationUnlockLevel)
         : undefined,
+      seller: seller as string,
     };
 
     try {
@@ -155,6 +145,17 @@ router.get("/search", async (req, res) => {
         // Recalculate total/page derived from this is impossible without fetching all,
         // but for now we just filter the current page.
         // Ideally we should warn user or handle this better.
+      }
+
+      // Client-side filter for seller name
+      if (seller) {
+        items = items.filter(
+          (item) =>
+            item.sellerName &&
+            item.sellerName
+              .toLowerCase()
+              .includes((seller as string).toLowerCase()),
+        );
       }
 
       // Star grid filtering
@@ -219,6 +220,11 @@ router.get("/search", async (req, res) => {
         params.push(Number(maxPrice) * 100);
       }
 
+      if (seller) {
+        sql += ` AND seller_name LIKE ?`;
+        params.push(`%${seller}%`);
+      }
+
       // Get total count for pagination
       const countSql = sql.replace("SELECT *", "SELECT COUNT(*) as count");
       const countResult = db.prepare(countSql).get(...params) as {
@@ -262,11 +268,13 @@ router.get("/search", async (req, res) => {
         hero: row.hero,
         weapon: row.weapon,
         starGrid: parseStarGrid(row.star_grid),
-        variationInfo: row.variation_info ? JSON.parse(row.variation_info) : null,
+        variationInfo: row.variation_info
+          ? JSON.parse(row.variation_info)
+          : null,
         currentPrice: row.current_price,
         sellerName: row.seller_name,
         status: row.status as "normal" | "draw" | "sold" | "delisted",
-        collectCount: row.collect_count,
+        collectCount: safeCollectCount(row.collect_count),
         lastCheckedAt: parseSqliteDateTime(row.last_checked_at),
         createdAt: parseRequiredSqliteDateTime(row.created_at),
         updatedAt: parseRequiredSqliteDateTime(row.updated_at),
@@ -355,25 +363,25 @@ router.get("/:id", async (req, res) => {
 
     const cached = db.prepare(`SELECT * FROM items WHERE id = ?`).get(id) as
       | {
-          id: string;
-          name: string;
-          image_url: string | null;
-          capture_urls: string | null;
-          serial_num: string | null;
-          category: string;
-          rarity: string;
-          hero: string | null;
-          weapon: string | null;
-          star_grid: string;
-          variation_info: string | null;
-          current_price: number;
-          seller_name: string | null;
-          status: string;
-          collect_count: number;
-          last_checked_at: string | null;
-          created_at: string;
-          updated_at: string;
-        }
+        id: string;
+        name: string;
+        image_url: string | null;
+        capture_urls: string | null;
+        serial_num: string | null;
+        category: string;
+        rarity: string;
+        hero: string | null;
+        weapon: string | null;
+        star_grid: string;
+        variation_info: string | null;
+        current_price: number;
+        seller_name: string | null;
+        status: string;
+        collect_count: number;
+        last_checked_at: string | null;
+        created_at: string;
+        updated_at: string;
+      }
       | undefined;
 
     if (cached) {
@@ -388,11 +396,13 @@ router.get("/:id", async (req, res) => {
         hero: cached.hero,
         weapon: cached.weapon,
         starGrid: parseStarGrid(cached.star_grid),
-        variationInfo: cached.variation_info ? JSON.parse(cached.variation_info) : null,
+        variationInfo: cached.variation_info
+          ? JSON.parse(cached.variation_info)
+          : null,
         currentPrice: cached.current_price,
         sellerName: cached.seller_name,
         status: cached.status as "normal" | "draw" | "sold" | "delisted",
-        collectCount: cached.collect_count,
+        collectCount: safeCollectCount(cached.collect_count),
         lastCheckedAt: parseSqliteDateTime(cached.last_checked_at),
         createdAt: parseRequiredSqliteDateTime(cached.created_at),
         updatedAt: parseRequiredSqliteDateTime(cached.updated_at),
@@ -431,6 +441,17 @@ router.get("/type/:id/listings", async (req, res) => {
       maxValue,
     } = req.query;
 
+    // 先获取父物品信息以确定稀有度
+    let parentRarity: "gold" | "red" | undefined;
+    try {
+      const parentItem = await cbgClient.getItemById(id);
+      if (parentItem) {
+        parentRarity = parentItem.rarity;
+      }
+    } catch (e) {
+      console.warn(`Failed to fetch parent item rarity for ${id}:`, e);
+    }
+
     const result = await cbgClient.getEquipListByType(
       id,
       String(searchType),
@@ -446,6 +467,7 @@ router.get("/type/:id/listings", async (req, res) => {
         minValue: minValue ? Number(minValue) : undefined,
         maxValue: maxValue ? Number(maxValue) : undefined,
       },
+      parentRarity,
     );
 
     res.json({
@@ -483,11 +505,11 @@ router.get("/:id/history", (req, res) => {
     `,
       )
       .all(id, Number(days)) as {
-      date: string;
-      avg_price: number;
-      min_price: number;
-      max_price: number;
-    }[];
+        date: string;
+        avg_price: number;
+        min_price: number;
+        max_price: number;
+      }[];
 
     const history = rows.map((row) => ({
       date: row.date,

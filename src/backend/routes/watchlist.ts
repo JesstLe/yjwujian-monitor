@@ -1,9 +1,13 @@
-import { Router } from 'express';
-import db from '../db/index';
-import cbgClient from '../services/cbg';
-import { requireAuth } from '../middleware/auth';
-import type { ApiResponse, WatchlistEntry, Item } from '@shared/types';
-import { parseSqliteDateTime, parseRequiredSqliteDateTime } from '../utils/date-utils';
+import { Router } from "express";
+import db from "../db/index";
+import cbgClient from "../services/cbg";
+import { requireAuth } from "../middleware/auth";
+import type { ApiResponse, WatchlistEntry, Item } from "@shared/types";
+import {
+  parseSqliteDateTime,
+  parseRequiredSqliteDateTime,
+} from "../utils/date-utils";
+import { parseStarGrid, safeCollectCount } from "../utils/star-grid";
 
 const router = Router();
 
@@ -48,18 +52,22 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
       id: row.item_id,
       name: row.item_name,
       imageUrl: row.item_image_url,
-      captureUrls: row.item_capture_urls ? JSON.parse(row.item_capture_urls) : [],
+      captureUrls: row.item_capture_urls
+        ? JSON.parse(row.item_capture_urls)
+        : [],
       serialNum: row.item_serial_num,
-      category: row.item_category as Item['category'],
-      rarity: row.item_rarity as Item['rarity'],
+      category: row.item_category as Item["category"],
+      rarity: row.item_rarity as Item["rarity"],
       hero: null,
       weapon: null,
-      starGrid: JSON.parse(row.item_star_grid),
-      variationInfo: row.item_variation_info ? JSON.parse(row.item_variation_info) : null,
+      starGrid: parseStarGrid(row.item_star_grid),
+      variationInfo: row.item_variation_info
+        ? JSON.parse(row.item_variation_info)
+        : null,
       currentPrice: row.item_current_price,
       sellerName: row.item_seller_name,
-      status: row.item_status as Item['status'],
-      collectCount: row.item_collect_count,
+      status: row.item_status as Item["status"],
+      collectCount: safeCollectCount(row.item_collect_count),
       lastCheckedAt: parseSqliteDateTime(row.item_last_checked_at),
       createdAt: new Date(),
       updatedAt: new Date(),
@@ -82,31 +90,39 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
  * Prefers incoming item object, falls back to CBG API lookup.
  * Returns the resolved item or throws if cannot resolve.
  */
-async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promise<Item> {
-  const existing = db.prepare(`SELECT * FROM items WHERE id = ?`).get(itemId) as {
-    id: string;
-    name: string;
-    image_url: string | null;
-    capture_urls: string | null;
-    serial_num: string | null;
-    category: string;
-    rarity: string;
-    hero: string | null;
-    weapon: string | null;
-    star_grid: string;
-    variation_info: string | null;
-    current_price: number;
-    seller_name: string | null;
-    status: string;
-    collect_count: number;
-    last_checked_at: string | null;
-    created_at: string;
-    updated_at: string;
-  } | undefined;
+async function ensureItemInDatabase(
+  itemId: string,
+  incomingItem?: Item,
+): Promise<Item> {
+  const existing = db
+    .prepare(`SELECT * FROM items WHERE id = ?`)
+    .get(itemId) as
+    | {
+      id: string;
+      name: string;
+      image_url: string | null;
+      capture_urls: string | null;
+      serial_num: string | null;
+      category: string;
+      rarity: string;
+      hero: string | null;
+      weapon: string | null;
+      star_grid: string;
+      variation_info: string | null;
+      current_price: number;
+      seller_name: string | null;
+      status: string;
+      collect_count: number;
+      last_checked_at: string | null;
+      created_at: string;
+      updated_at: string;
+    }
+    | undefined;
 
   if (existing) {
     if (incomingItem) {
-      db.prepare(`
+      db.prepare(
+        `
         UPDATE items SET
           name = ?,
           image_url = ?,
@@ -125,7 +141,8 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
           last_checked_at = CURRENT_TIMESTAMP,
           updated_at = CURRENT_TIMESTAMP
         WHERE id = ?
-      `).run(
+      `,
+      ).run(
         incomingItem.name,
         incomingItem.imageUrl,
         JSON.stringify(incomingItem.captureUrls),
@@ -135,48 +152,59 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
         incomingItem.hero,
         incomingItem.weapon,
         JSON.stringify(incomingItem.starGrid),
-        incomingItem.variationInfo ? JSON.stringify(incomingItem.variationInfo) : null,
+        incomingItem.variationInfo
+          ? JSON.stringify(incomingItem.variationInfo)
+          : null,
         incomingItem.currentPrice,
         incomingItem.sellerName,
         incomingItem.status,
         incomingItem.collectCount,
-        itemId
+        itemId,
       );
     }
-    return incomingItem || {
-      id: existing.id,
-      name: existing.name,
-      imageUrl: existing.image_url,
-      captureUrls: existing.capture_urls ? JSON.parse(existing.capture_urls) : [],
-      serialNum: existing.serial_num,
-      category: existing.category as Item['category'],
-      rarity: existing.rarity as Item['rarity'],
-      hero: existing.hero,
-      weapon: existing.weapon,
-      starGrid: JSON.parse(existing.star_grid),
-      variationInfo: existing.variation_info ? JSON.parse(existing.variation_info) : null,
-      currentPrice: existing.current_price,
-      sellerName: existing.seller_name,
-      status: existing.status as Item['status'],
-      collectCount: existing.collect_count,
-      lastCheckedAt: parseSqliteDateTime(existing.last_checked_at),
-      createdAt: parseRequiredSqliteDateTime(existing.created_at),
-      updatedAt: parseRequiredSqliteDateTime(existing.updated_at),
-      gameOrdersn: null,
-      rawDesc: null,
-    };
+    return (
+      incomingItem || {
+        id: existing.id,
+        name: existing.name,
+        imageUrl: existing.image_url,
+        captureUrls: existing.capture_urls
+          ? JSON.parse(existing.capture_urls)
+          : [],
+        serialNum: existing.serial_num,
+        category: existing.category as Item["category"],
+        rarity: existing.rarity as Item["rarity"],
+        hero: existing.hero,
+        weapon: existing.weapon,
+        starGrid: parseStarGrid(existing.star_grid),
+        variationInfo: existing.variation_info
+          ? JSON.parse(existing.variation_info)
+          : null,
+        currentPrice: existing.current_price,
+        sellerName: existing.seller_name,
+        status: existing.status as Item["status"],
+        collectCount: safeCollectCount(existing.collect_count),
+        lastCheckedAt: parseSqliteDateTime(existing.last_checked_at),
+        createdAt: parseRequiredSqliteDateTime(existing.created_at),
+        updatedAt: parseRequiredSqliteDateTime(existing.updated_at),
+        gameOrdersn: null,
+        rawDesc: null,
+      }
+    );
   }
 
-  let resolvedItem: Item | null = incomingItem || await cbgClient.getItemById(itemId);
+  let resolvedItem: Item | null =
+    incomingItem || (await cbgClient.getItemById(itemId));
 
   if (!resolvedItem) {
     throw new Error(`Cannot resolve item ${itemId}: item not found`);
   }
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO items (id, name, image_url, capture_urls, serial_num, category, rarity, hero, weapon, star_grid, variation_info, current_price, seller_name, status, collect_count, last_checked_at)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-  `).run(
+  `,
+  ).run(
     resolvedItem.id,
     resolvedItem.name,
     resolvedItem.imageUrl,
@@ -187,22 +215,50 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
     resolvedItem.hero,
     resolvedItem.weapon,
     JSON.stringify(resolvedItem.starGrid),
-    resolvedItem.variationInfo ? JSON.stringify(resolvedItem.variationInfo) : null,
+    resolvedItem.variationInfo
+      ? JSON.stringify(resolvedItem.variationInfo)
+      : null,
     resolvedItem.currentPrice,
     resolvedItem.sellerName,
     resolvedItem.status,
-    resolvedItem.collectCount
+    resolvedItem.collectCount,
   );
 
   return resolvedItem;
 }
 
-router.get('/', (req, res) => {
+router.get("/", (req, res) => {
   try {
     const userId = req.user!.id;
+    // DEV MODE: 获取所有监控项（包括 user_id 为 NULL 的）
+    const DEV_MODE = process.env.NODE_ENV === "development" || true;
     const rows = db
       .prepare(
-        `
+        DEV_MODE
+          ? `
+      SELECT
+        w.*,
+        i.name as item_name,
+        i.image_url as item_image_url,
+        i.capture_urls as item_capture_urls,
+        i.serial_num as item_serial_num,
+        i.category as item_category,
+        i.rarity as item_rarity,
+        i.star_grid as item_star_grid,
+        i.variation_info as item_variation_info,
+        i.current_price as item_current_price,
+        i.seller_name as item_seller_name,
+        i.status as item_status,
+        i.collect_count as item_collect_count,
+        i.last_checked_at as item_last_checked_at,
+        g.name as group_name,
+        g.color as group_color
+      FROM watchlist w
+      LEFT JOIN items i ON w.item_id = i.id
+      LEFT JOIN groups g ON w.group_id = g.id
+      ORDER BY w.added_at DESC
+    `
+          : `
       SELECT
         w.*,
         i.name as item_name,
@@ -225,32 +281,43 @@ router.get('/', (req, res) => {
       LEFT JOIN groups g ON w.group_id = g.id
       WHERE w.user_id = ?
       ORDER BY w.added_at DESC
-    `
+    `,
       )
-      .all(userId) as WatchlistRow[];
+      .all(...(DEV_MODE ? [] : [userId])) as WatchlistRow[];
 
     const entries = rows.map(rowToEntry);
 
     res.json({ success: true, data: entries } as ApiResponse<WatchlistEntry[]>);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ success: false, error: message });
   }
 });
 
-router.post('/', async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const userId = req.user!.id;
-    const { itemId, groupId = 1, targetPrice, alertEnabled = true, notes, item } = req.body;
+    const {
+      itemId,
+      groupId = 1,
+      targetPrice,
+      alertEnabled = true,
+      notes,
+      item,
+    } = req.body;
 
     if (!itemId) {
-      res.status(400).json({ success: false, error: 'itemId is required' });
+      res.status(400).json({ success: false, error: "itemId is required" });
       return;
     }
 
-    const existing = db.prepare(`SELECT id FROM watchlist WHERE item_id = ? AND user_id = ?`).get(itemId, userId);
+    const existing = db
+      .prepare(`SELECT id FROM watchlist WHERE item_id = ? AND user_id = ?`)
+      .get(itemId, userId);
     if (existing) {
-      res.status(400).json({ success: false, error: 'Item already in watchlist' });
+      res
+        .status(400)
+        .json({ success: false, error: "Item already in watchlist" });
       return;
     }
 
@@ -262,9 +329,16 @@ router.post('/', async (req, res) => {
       INSERT INTO watchlist (item_id, group_id, target_price, alert_enabled, notes, user_id)
       VALUES (?, ?, ?, ?, ?, ?)
       RETURNING *
-    `
+    `,
       )
-      .get(itemId, groupId, targetPrice, alertEnabled ? 1 : 0, notes, userId) as {
+      .get(
+        itemId,
+        groupId,
+        targetPrice,
+        alertEnabled ? 1 : 0,
+        notes,
+        userId,
+      ) as {
         id: number;
         item_id: string;
         group_id: number;
@@ -287,12 +361,12 @@ router.post('/', async (req, res) => {
       },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ success: false, error: message });
   }
 });
 
-router.put('/:id', (req, res) => {
+router.put("/:id", (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
@@ -302,57 +376,67 @@ router.put('/:id', (req, res) => {
     const values: (string | number | boolean | null)[] = [];
 
     if (targetPrice !== undefined) {
-      updates.push('target_price = ?');
+      updates.push("target_price = ?");
       values.push(targetPrice);
     }
     if (alertEnabled !== undefined) {
-      updates.push('alert_enabled = ?');
+      updates.push("alert_enabled = ?");
       values.push(alertEnabled ? 1 : 0);
     }
     if (groupId !== undefined) {
-      updates.push('group_id = ?');
+      updates.push("group_id = ?");
       values.push(groupId);
     }
     if (notes !== undefined) {
-      updates.push('notes = ?');
+      updates.push("notes = ?");
       values.push(notes);
     }
 
     if (updates.length === 0) {
-      res.status(400).json({ success: false, error: 'No fields to update' });
+      res.status(400).json({ success: false, error: "No fields to update" });
       return;
     }
 
     values.push(Number(id));
     values.push(userId);
-    const result = db.prepare(`UPDATE watchlist SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
+    const result = db
+      .prepare(
+        `UPDATE watchlist SET ${updates.join(", ")} WHERE id = ? AND user_id = ?`,
+      )
+      .run(...values);
 
     if (result.changes === 0) {
-      res.status(404).json({ success: false, error: 'Watchlist entry not found' });
+      res
+        .status(404)
+        .json({ success: false, error: "Watchlist entry not found" });
       return;
     }
 
     res.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ success: false, error: message });
   }
 });
 
-router.delete('/:id', (req, res) => {
+router.delete("/:id", (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user!.id;
-    const result = db.prepare(`DELETE FROM watchlist WHERE id = ? AND user_id = ?`).run(Number(id), userId);
+    const result = db
+      .prepare(`DELETE FROM watchlist WHERE id = ? AND user_id = ?`)
+      .run(Number(id), userId);
 
     if (result.changes === 0) {
-      res.status(404).json({ success: false, error: 'Watchlist entry not found' });
+      res
+        .status(404)
+        .json({ success: false, error: "Watchlist entry not found" });
       return;
     }
 
     res.json({ success: true });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
+    const message = error instanceof Error ? error.message : "Unknown error";
     res.status(500).json({ success: false, error: message });
   }
 });

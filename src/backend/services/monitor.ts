@@ -5,6 +5,10 @@ import { checkAndTriggerAlerts } from './alert';
 import type { Item } from '@shared/types';
 
 const DEFAULT_INTERVAL_MINUTES = 5;
+const MONITOR_CONCURRENCY = Math.max(
+  1,
+  parseInt(process.env.MONITOR_CONCURRENCY || "4", 10) || 4,
+);
 
 function getIntervalFromSettings(): number {
   try {
@@ -67,7 +71,7 @@ function savePriceSnapshot(itemId: string, price: number, status: string): void 
 }
 
 async function checkItem(itemId: string): Promise<Item | null> {
-  const item = await cbgClient.getItemById(itemId);
+  const item = await cbgClient.getItemById(itemId, { bypassCache: true });
   if (item) {
     upsertItem(item);
     savePriceSnapshot(item.id, item.currentPrice, item.status);
@@ -75,22 +79,71 @@ async function checkItem(itemId: string): Promise<Item | null> {
   return item;
 }
 
-async function checkAllWatchlistItems(): Promise<void> {
-  const watchlistItems = db
-    .prepare(`
-      SELECT DISTINCT item_id FROM watchlist WHERE alert_enabled = 1
-    `)
-    .all() as { item_id: string }[];
-
-  for (const { item_id } of watchlistItems) {
-    try {
-      await checkItem(item_id);
-    } catch (error) {
-      console.error(`Failed to check item ${item_id}:`, error);
-    }
+async function checkItemsWithConcurrency(itemIds: string[]): Promise<number> {
+  if (itemIds.length === 0) {
+    return 0;
   }
 
-  checkAndTriggerAlerts();
+  let cursor = 0;
+  let checkedCount = 0;
+  const workers = Math.min(MONITOR_CONCURRENCY, itemIds.length);
+
+  const worker = async () => {
+    while (true) {
+      const index = cursor;
+      cursor += 1;
+
+      if (index >= itemIds.length) {
+        return;
+      }
+
+      const itemId = itemIds[index];
+      try {
+        const result = await checkItem(itemId);
+        if (result) {
+          checkedCount += 1;
+        }
+      } catch (error) {
+        console.error(`Failed to check item ${itemId}:`, error);
+      }
+    }
+  };
+
+  await Promise.all(Array.from({ length: workers }, () => worker()));
+  return checkedCount;
+}
+
+let activeMonitorPass: Promise<number> | null = null;
+
+async function runMonitorPass(): Promise<number> {
+  if (activeMonitorPass) {
+    return activeMonitorPass;
+  }
+
+  activeMonitorPass = (async () => {
+    const watchlistItems = db
+      .prepare(`
+        SELECT DISTINCT item_id FROM watchlist WHERE alert_enabled = 1
+      `)
+      .all() as { item_id: string }[];
+
+    const checkedCount = await checkItemsWithConcurrency(
+      watchlistItems.map(({ item_id }) => item_id),
+    );
+    checkAndTriggerAlerts();
+
+    return checkedCount;
+  })();
+
+  try {
+    return await activeMonitorPass;
+  } finally {
+    activeMonitorPass = null;
+  }
+}
+
+async function checkAllWatchlistItems(): Promise<void> {
+  await runMonitorPass();
 }
 
 let scheduledTask: cron.ScheduledTask | null = null;
@@ -133,21 +186,7 @@ export function getMonitorStatus(): { running: boolean; intervalMinutes: number 
 
 export async function checkNow(): Promise<{ success: boolean; checkedCount: number; error?: string }> {
   try {
-    const watchlistItems = db
-      .prepare(`SELECT DISTINCT item_id FROM watchlist WHERE alert_enabled = 1`)
-      .all() as { item_id: string }[];
-
-    let checkedCount = 0;
-    for (const { item_id } of watchlistItems) {
-      try {
-        const result = await checkItem(item_id);
-        if (result) checkedCount++;
-      } catch (error) {
-        console.error(`Failed to check item ${item_id}:`, error);
-      }
-    }
-
-    checkAndTriggerAlerts();
+    const checkedCount = await runMonitorPass();
     return { success: true, checkedCount };
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';

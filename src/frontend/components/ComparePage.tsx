@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
@@ -145,6 +146,7 @@ const CompareCard = ({
             {formatPrice(item.currentPrice)}
           </span>
         </div>
+
       </div>
     </div>
   );
@@ -270,6 +272,7 @@ const CompareTable = ({ items }: { items: CompareItem[] }) => {
 };
 
 export default function ComparePage() {
+  const navigate = useNavigate();
   const [types, setTypes] = useState<Item[]>([]);
   const [typesLoading, setTypesLoading] = useState(true);
   const [typesError, setTypesError] = useState<string | null>(null);
@@ -488,9 +491,44 @@ export default function ComparePage() {
                     <span className="text-2xl font-bold text-emerald-600">
                       {(searchResult.currentPrice / 100).toFixed(2)}
                     </span>
-                  </div>
-                </div>
-              </div>
+          </div>
+        </div>
+
+        {compareList.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-20">
+            <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl flex items-center justify-center mb-5 shadow-sm">
+              <svg
+                className="w-12 h-12 text-blue-300"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={1.5}
+                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                />
+              </svg>
+            </div>
+            <p className="text-base font-semibold text-gray-600 mb-1">
+              暂无对比物品
+            </p>
+            <p className="text-sm text-gray-400">搜索并添加物品开始对比</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {compareList.map((item) => (
+              <CompareCard
+                key={item.id}
+                item={item}
+                onRemove={handleRemove}
+                onClick={setSelectedItem}
+              />
+            ))}
+          </div>
+        )}
+      </div>
               <button
                 onClick={() => handleAddToCompare(searchResult)}
                 className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
@@ -507,9 +545,32 @@ export default function ComparePage() {
       <div className="bg-white rounded-2xl p-6 border border-gray-100 shadow-sm">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-gray-900">对比列表</h2>
-          <span className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 rounded-full text-sm font-medium border border-blue-100">
-            {compareList.length} 个物品
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="px-3 py-1.5 bg-gradient-to-r from-blue-50 to-indigo-50 text-blue-600 rounded-full text-sm font-medium border border-blue-100">
+              {compareList.length} 个物品
+            </span>
+            {compareList.length >= 2 && (
+              <button
+                onClick={() => navigate("/compare/3d")}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white text-sm font-medium rounded-xl transition-all shadow-md hover:shadow-lg"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+                  />
+                </svg>
+                <span>3D对比</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {compareList.length === 0 ? (

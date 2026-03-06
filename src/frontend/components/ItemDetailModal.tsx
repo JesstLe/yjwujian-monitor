@@ -16,7 +16,6 @@ export default function ItemDetailModal({
   item: initialItem,
 }: ItemDetailModalProps) {
   const [detailedItem, setDetailedItem] = useState<Item | null>(initialItem);
-  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -28,7 +27,6 @@ export default function ItemDetailModal({
   }, [isOpen, initialItem]);
 
   const fetchDetail = async (item: Item) => {
-    setLoading(true);
     try {
       const detail = await api.items.getById(item.id, item.gameOrdersn!);
       setDetailedItem({
@@ -37,14 +35,10 @@ export default function ItemDetailModal({
       });
     } catch (error) {
       console.error("Failed to fetch item detail:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
   if (!isOpen || !detailedItem) return null;
-
-  const { rawDesc } = detailedItem;
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
 
   return (
@@ -125,17 +119,18 @@ export default function ItemDetailModal({
 
               {/* Right: Detailed Attributes */}
               <div className="space-y-6 flex flex-col h-full">
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors">
-                    <div className="text-sm text-slate-400 mb-2">
+                {/* 星格 - 全宽大卡片 */}
+                {detailedItem.variationInfo && (
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-amber-900/20 to-orange-900/10 border border-amber-700/30">
+                    <div className="text-sm text-amber-400 mb-3 font-medium flex items-center gap-2">
+                      <span className="text-lg">★</span>
                       星格 (Star Grid)
                     </div>
-                    {detailedItem.variationInfo ? (
-                      <StarGridSlots variationInfo={detailedItem.variationInfo} />
-                    ) : (
-                      <div className="text-sm text-slate-500">无星格数据</div>
-                    )}
+                    <StarGridSlots variationInfo={detailedItem.variationInfo} />
                   </div>
+                )}
+
+                <div className="grid grid-cols-2 gap-4">
                   <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors flex flex-col justify-center">
                     <div className="text-sm text-slate-400 mb-1">编号</div>
                     <div
@@ -147,110 +142,17 @@ export default function ItemDetailModal({
                   </div>
                 </div>
 
-                <div className="flex-1">
-                  {/* 变体属性（颜色、狐尾等）*/}
-                  {detailedItem.variationInfo && detailedItem.variationInfo.attributes.length > 0 && (
-                    <div className="mb-4">
-                      <h4 className="text-lg font-semibold text-slate-200 flex items-center gap-2 border-l-4 border-cyan-500 pl-3 mb-3">
-                        变体属性
-                      </h4>
-                      <div className="grid grid-cols-2 gap-3">
-                        {detailedItem.variationInfo.attributes.map((attr, index) => (
-                          <div 
-                            key={index}
-                            className="p-3 rounded-lg bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors"
-                          >
-                            <div className="text-xs text-slate-500 mb-1">{attr.name}</div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl font-bold text-cyan-400">{attr.quality}</span>
-                              {attr.quality >= 5 && (
-                                <span className="text-xs px-1.5 py-0.5 rounded bg-yellow-500/10 text-yellow-400 border border-yellow-500/30">
-                                  满品质
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                        {detailedItem.variationInfo.redStarNum > 0 && (
-                          <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/30">
-                            <div className="text-xs text-red-300 mb-1">红星</div>
-                            <div className="text-xl font-bold text-red-400">
-                              ★{detailedItem.variationInfo.redStarNum}
-                            </div>
-                          </div>
-                        )}
-                      </div>
+                {/* 卖家信息 */}
+                {detailedItem.sellerName && (
+                  <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50">
+                    <div className="text-sm text-slate-400 mb-1">卖家</div>
+                    <div className="text-lg font-medium text-slate-200">
+                      {detailedItem.sellerName}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  {loading ? (
-                    <div className="h-full flex flex-col items-center justify-center py-12 space-y-3">
-                      <div className="w-8 h-8 border-2 border-cyan-500 border-t-transparent rounded-full animate-spin" />
-                      <span className="text-slate-500 text-sm">
-                        加载详细属性中...
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <h4 className="text-lg font-semibold text-slate-200 flex items-center gap-2 border-l-4 border-purple-500 pl-3">
-                        详细属性
-                      </h4>
-
-                      {rawDesc ? (
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="p-4 rounded bg-slate-800/30 border border-slate-700/30">
-                            <div className="text-xs text-slate-500 mb-1">
-                              收藏分 (Score)
-                            </div>
-                            <div className="text-2xl font-bold text-purple-400">
-                              {rawDesc.collection_score || "-"}
-                            </div>
-                          </div>
-                          <div className="p-4 rounded bg-slate-800/30 border border-slate-700/30">
-                            <div className="text-xs text-slate-500 mb-1">
-                              洗练次数 (Washed)
-                            </div>
-                            <div className="text-2xl font-bold text-emerald-400">
-                              {rawDesc.washed_count !== undefined
-                                ? rawDesc.washed_count
-                                : "-"}
-                            </div>
-                          </div>
-                          {rawDesc.counter_value !== undefined && (
-                            <div className="p-4 rounded bg-red-900/10 border border-red-900/30 col-span-2">
-                              <div className="text-xs text-red-300 mb-1 flex items-center gap-2">
-                                <svg
-                                  className="w-3 h-3"
-                                  fill="currentColor"
-                                  viewBox="0 0 20 20"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z"
-                                    clipRule="evenodd"
-                                  />
-                                </svg>
-                                击杀/计数数据 (Counter)
-                              </div>
-                              <div className="text-3xl font-bold text-red-500 flex items-baseline gap-2">
-                                {rawDesc.counter_value}
-                                <span className="text-sm font-normal text-red-400/70">
-                                  Kills/Counts
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="text-slate-500 text-sm italic p-4 bg-slate-800/20 rounded border border-slate-800">
-                          {detailedItem.gameOrdersn
-                            ? "正在获取属性..."
-                            : "无详细属性信息"}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
+                <div className="flex-1" />
 
                 <div className="pt-6 border-t border-slate-700/50 flex justify-end gap-3 mt-auto">
                   <button

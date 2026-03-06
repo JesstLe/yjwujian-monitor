@@ -19,27 +19,62 @@ export default function CapturePreview({ captureUrls, fallbackUrl, alt, classNam
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isHovering, setIsHovering] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const [hasInteracted, setHasInteracted] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const containerRef = useRef<HTMLDivElement | null>(null);
+    const [isActivated, setIsActivated] = useState(false);
     const hasCapture = captureUrls.length > 0;
+
+    useEffect(() => {
+        const element = containerRef.current;
+        if (!element) {
+            return;
+        }
+
+        if (!hasCapture) {
+            setIsActivated(true);
+            return;
+        }
+
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0]?.isIntersecting) {
+                    setIsActivated(true);
+                    observer.disconnect();
+                }
+            },
+            {
+                rootMargin: "160px",
+            },
+        );
+
+        observer.observe(element);
+        return () => observer.disconnect();
+    }, [hasCapture]);
 
     // Preload all frames
     useEffect(() => {
-        if (hasCapture) {
-            captureUrls.forEach((url) => {
+        if (hasCapture && isActivated) {
+            const preloadCount = hasInteracted ? captureUrls.length : Math.min(3, captureUrls.length);
+            captureUrls.slice(0, preloadCount).forEach((url) => {
                 const img = new Image();
                 img.src = url;
             });
         }
-    }, [captureUrls, hasCapture]);
+    }, [captureUrls, hasCapture, isActivated, hasInteracted]);
 
     // Auto-play rotation animation on hover
     const handleMouseEnter = useCallback(() => {
-        if (!hasCapture) return;
+        if (!hasCapture || !isActivated) return;
+        setHasInteracted(true);
         setIsHovering(true);
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+        }
         intervalRef.current = setInterval(() => {
             setCurrentFrame((prev) => (prev + 1) % captureUrls.length);
         }, 80); // ~12.5fps for smooth rotation
-    }, [captureUrls.length, hasCapture]);
+    }, [captureUrls.length, hasCapture, isActivated]);
 
     const handleMouseLeave = useCallback(() => {
         setIsHovering(false);
@@ -57,9 +92,13 @@ export default function CapturePreview({ captureUrls, fallbackUrl, alt, classNam
         };
     }, []);
 
-    const displayUrl = hasCapture
+    const displayUrl = (hasCapture && isActivated)
         ? captureUrls[currentFrame]
-        : fallbackUrl;
+        : (fallbackUrl || captureUrls[0]);
+
+    useEffect(() => {
+        setImageLoaded(false);
+    }, [displayUrl]);
 
     if (!displayUrl) {
         // Placeholder if no image is available
@@ -72,6 +111,7 @@ export default function CapturePreview({ captureUrls, fallbackUrl, alt, classNam
 
     return (
         <div
+            ref={containerRef}
             className={`relative w-full aspect-square overflow-hidden bg-slate-900/50 ${className || ''}`}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
@@ -87,7 +127,7 @@ export default function CapturePreview({ captureUrls, fallbackUrl, alt, classNam
                 <div className="absolute inset-0 loading-skeleton" />
             )}
             {/* 3D Rotation Indicator */}
-            {hasCapture && isHovering && (
+            {hasCapture && isActivated && isHovering && (
                 <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 text-xs text-cyan-400 backdrop-blur-sm">
                     {Icons.cube}
                     <span>3D</span>

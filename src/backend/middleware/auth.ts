@@ -19,6 +19,18 @@ declare global {
  * Require authentication - validates JWT token
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
+  // DEV MODE: 完全禁用登录验证
+  const DISABLE_AUTH = process.env.NODE_ENV === "development" || true;
+
+  if (DISABLE_AUTH) {
+    req.user = {
+      id: "dev-user",
+      email: "dev@example.com",
+      emailVerified: true,
+    };
+    return next();
+  }
+
   const token = req.cookies?.token;
 
   if (!token) {

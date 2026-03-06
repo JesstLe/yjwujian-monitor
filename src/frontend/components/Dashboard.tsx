@@ -1,6 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import api from "../services/api";
 import type { WatchlistEntry, Alert } from "@shared/types";
+
+const ACTIVE_POLL_MS = 30_000;
+const BACKGROUND_POLL_MS = 180_000;
 
 const Icons = {
   alert: (
@@ -130,11 +133,11 @@ function StatCard({
 
 function AlertBanner({
   alerts,
-  watchlist,
+  watchlistByItemId,
   onMarkRead,
 }: {
   alerts: Alert[];
-  watchlist: WatchlistEntry[];
+  watchlistByItemId: Map<string, WatchlistEntry>;
   onMarkRead: (id: number) => void;
 }) {
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
@@ -150,9 +153,9 @@ function AlertBanner({
           {alerts.length} 个未读
         </span>
       </div>
-      <div className="space-y-2">
-        {alerts.slice(0, 5).map((alert) => {
-          const entry = watchlist.find((w) => w.itemId === alert.itemId);
+        <div className="space-y-2">
+          {alerts.slice(0, 5).map((alert) => {
+          const entry = watchlistByItemId.get(alert.itemId);
           return (
             <div
               key={alert.id}
@@ -348,19 +351,91 @@ export default function Dashboard() {
           api.watchlist.getAll(),
           api.alerts.getAll(true),
         ]);
+        if (stopped) {
+          return;
+        }
         setWatchlist(watchlistData);
         setAlerts(alertsData);
       } catch (error) {
         console.error("Failed to fetch data:", error);
       } finally {
-        setLoading(false);
+        if (!stopped) {
+          setLoading(false);
+        }
       }
     };
 
-    fetchData();
-    const interval = setInterval(fetchData, 30000);
-    return () => clearInterval(interval);
+    const getPollDelay = () =>
+      document.visibilityState === "hidden"
+        ? BACKGROUND_POLL_MS
+        : ACTIVE_POLL_MS;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    let inFlight = false;
+
+    const runFetch = async () => {
+      if (stopped || inFlight) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        await fetchData();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const scheduleNext = () => {
+      if (stopped || timer) return;
+      timer = setTimeout(async () => {
+        timer = null;
+        await runFetch();
+        if (stopped) {
+          return;
+        }
+        scheduleNext();
+      }, getPollDelay());
+    };
+
+    const handleVisibilityChange = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      scheduleNext();
+    };
+
+    runFetch();
+    scheduleNext();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
   }, []);
+
+  const watchlistByItemId = useMemo(() => {
+    const map = new Map<string, WatchlistEntry>();
+    for (const entry of watchlist) {
+      if (!map.has(entry.itemId)) {
+        map.set(entry.itemId, entry);
+      }
+    }
+    return map;
+  }, [watchlist]);
+
+  const reachedCount = useMemo(
+    () =>
+      watchlist.filter(
+        (e) => e.targetPrice && e.item && e.item.currentPrice <= e.targetPrice,
+      ).length,
+    [watchlist],
+  );
 
   const handleMarkRead = async (alertId: number) => {
     try {
@@ -370,10 +445,6 @@ export default function Dashboard() {
       console.error("Failed to mark alert as read:", error);
     }
   };
-
-  const reachedCount = watchlist.filter(
-    (e) => e.targetPrice && e.item && e.item.currentPrice <= e.targetPrice,
-  ).length;
 
   if (loading) {
     return (
@@ -416,7 +487,7 @@ export default function Dashboard() {
 
       <AlertBanner
         alerts={alerts}
-        watchlist={watchlist}
+        watchlistByItemId={watchlistByItemId}
         onMarkRead={handleMarkRead}
       />
 

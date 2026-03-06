@@ -1,67 +1,170 @@
-import { useState, useEffect } from 'react';
-import api from '../services/api';
+import { useState, useEffect } from "react";
+import api from "../services/api";
 
 const Icons = {
   play: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   stop: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 10a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"
+      />
     </svg>
   ),
   bolt: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 10V3L4 14h7v7l9-11h-7z"
+      />
     </svg>
   ),
   check: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 13l4 4L19 7"
+      />
     </svg>
   ),
   clock: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   bell: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"
+      />
     </svg>
   ),
   volume: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"
+      />
     </svg>
   ),
   info: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+      />
     </svg>
   ),
   send: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"
+      />
     </svg>
   ),
 };
 
 export default function Settings() {
   const [settings, setSettings] = useState<Record<string, unknown>>({});
-  const [monitorStatus, setMonitorStatus] = useState<{ running: boolean; intervalMinutes: number } | null>(null);
+  const [monitorStatus, setMonitorStatus] = useState<{
+    running: boolean;
+    intervalMinutes: number;
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [testSending, setTestSending] = useState(false);
 
   // Notification State
-  const [notifType, setNotifType] = useState<string>('bark');
-  const [url, setUrl] = useState('');
+  const [notifType, setNotifType] = useState<string>("bark");
+  const [url, setUrl] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -79,12 +182,13 @@ export default function Settings() {
         }
         if (settingsData.notification_config) {
           try {
-            const config = typeof settingsData.notification_config === 'string'
-              ? JSON.parse(settingsData.notification_config)
-              : settingsData.notification_config;
+            const config =
+              typeof settingsData.notification_config === "string"
+                ? JSON.parse(settingsData.notification_config)
+                : settingsData.notification_config;
             if (config.url) setUrl(config.url);
           } catch (e) {
-            console.error('Failed to parse notif config', e);
+            console.error("Failed to parse notif config", e);
           }
         }
       } finally {
@@ -98,16 +202,17 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
+      const config = notifType === "pushplus" ? { token: url } : { url: url };
       const updates = {
         ...settings,
         notification_type: notifType,
-        notification_config: { url: url }
+        notification_config: config,
       };
       await api.settings.update(updates);
       setSettings(updates);
-      alert('设置已保存');
+      alert("设置已保存");
     } catch {
-      alert('保存失败');
+      alert("保存失败");
     } finally {
       setSaving(false);
     }
@@ -115,32 +220,38 @@ export default function Settings() {
 
   const handleTestNotification = async () => {
     if (!url) {
-      alert('请先填写 Webhook 地址');
+      alert(
+        notifType === "pushplus"
+          ? "请先填写 PushPlus Token"
+          : "请先填写 Webhook 地址",
+      );
       return;
     }
     setTestSending(true);
     try {
-      await api.settings.testNotification({ type: notifType, config: { url } });
-      alert('测试通知已发送，请检查接收端');
+      const config = notifType === "pushplus" ? { token: url } : { url: url };
+      await api.settings.testNotification({ type: notifType, config });
+      alert("测试通知已发送，请检查接收端");
     } catch (e) {
-      alert('发送失败: ' + (e instanceof Error ? e.message : String(e)));
+      alert("发送失败: " + (e instanceof Error ? e.message : String(e)));
     } finally {
       setTestSending(false);
     }
   };
 
-  const handleMonitorAction = async (action: 'start' | 'stop' | 'checkNow') => {
+  const handleMonitorAction = async (action: "start" | "stop" | "checkNow") => {
     setActionLoading(action);
     try {
-      if (action === 'checkNow') {
+      if (action === "checkNow") {
         const result = await api.monitor.checkNow();
         alert(`立即检查完成: ${result.message}`);
       } else {
-        const result = await api.monitor[action === 'start' ? 'start' : 'stop']();
+        const result =
+          await api.monitor[action === "start" ? "start" : "stop"]();
         setMonitorStatus(result);
       }
     } catch {
-      alert('操作失败');
+      alert("操作失败");
     } finally {
       setActionLoading(null);
     }
@@ -163,53 +274,67 @@ export default function Settings() {
         <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
           <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? 'bg-emerald-400' : 'bg-gray-400'}`} />
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+              <span
+                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? "bg-emerald-400" : "bg-gray-400"}`}
+              />
+              <span
+                className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? "bg-emerald-500" : "bg-gray-400"}`}
+              />
             </span>
             监控状态
           </h3>
           <div className="space-y-4">
             <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-medium ${monitorStatus?.running ? 'text-emerald-600' : 'text-gray-500'}`}>
-                  {monitorStatus?.running ? '运行中' : '已停止'}
+                <span
+                  className={`text-sm font-medium ${monitorStatus?.running ? "text-emerald-600" : "text-gray-500"}`}
+                >
+                  {monitorStatus?.running ? "运行中" : "已停止"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 {Icons.clock}
-                <span>检查间隔: {monitorStatus?.intervalMinutes || 5} 分钟</span>
+                <span>
+                  检查间隔: {monitorStatus?.intervalMinutes || 5} 分钟
+                </span>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-3">
               <button
-                onClick={() => handleMonitorAction('start')}
-                disabled={actionLoading === 'start' || monitorStatus?.running}
+                onClick={() => handleMonitorAction("start")}
+                disabled={actionLoading === "start" || monitorStatus?.running}
                 className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-emerald-200 transition-colors"
               >
-                {actionLoading === 'start' ? (
+                {actionLoading === "start" ? (
                   <span className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
-                ) : Icons.play}
+                ) : (
+                  Icons.play
+                )}
                 启动监控
               </button>
               <button
-                onClick={() => handleMonitorAction('stop')}
-                disabled={actionLoading === 'stop' || !monitorStatus?.running}
+                onClick={() => handleMonitorAction("stop")}
+                disabled={actionLoading === "stop" || !monitorStatus?.running}
                 className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-red-200 transition-colors"
               >
-                {actionLoading === 'stop' ? (
+                {actionLoading === "stop" ? (
                   <span className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
-                ) : Icons.stop}
+                ) : (
+                  Icons.stop
+                )}
                 停止监控
               </button>
               <button
-                onClick={() => handleMonitorAction('checkNow')}
-                disabled={actionLoading === 'checkNow'}
+                onClick={() => handleMonitorAction("checkNow")}
+                disabled={actionLoading === "checkNow"}
                 className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-blue-200 transition-colors"
               >
-                {actionLoading === 'checkNow' ? (
+                {actionLoading === "checkNow" ? (
                   <span className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                ) : Icons.bolt}
+                ) : (
+                  Icons.bolt
+                )}
                 立即检查
               </button>
             </div>
@@ -229,7 +354,10 @@ export default function Settings() {
                 max="60"
                 value={String(settings.check_interval_minutes || 5)}
                 onChange={(e) =>
-                  setSettings({ ...settings, check_interval_minutes: parseInt(e.target.value) })
+                  setSettings({
+                    ...settings,
+                    check_interval_minutes: parseInt(e.target.value),
+                  })
                 }
                 className="w-32 px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
               />
@@ -245,12 +373,15 @@ export default function Settings() {
           <div className="space-y-6">
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm text-gray-500 mb-2">通知通道</label>
+                <label className="block text-sm text-gray-500 mb-2">
+                  通知通道
+                </label>
                 <select
                   value={notifType}
                   onChange={(e) => setNotifType(e.target.value)}
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500"
                 >
+                  <option value="pushplus">PushPlus (微信推送)</option>
                   <option value="bark">Bark (iOS)</option>
                   <option value="feishu">飞书 Webhook</option>
                   <option value="dingtalk">钉钉 Webhook</option>
@@ -260,19 +391,41 @@ export default function Settings() {
 
               <div>
                 <label className="block text-sm text-gray-500 mb-2">
-                  {notifType === 'bark' ? 'Bark 服务器地址 (例如: https://api.day.app/YOUR_TOKEN/)' : 'Webhook URL'}
+                  {notifType === "pushplus"
+                    ? "PushPlus Token"
+                    : notifType === "bark"
+                      ? "Bark 服务器地址 (例如: https://api.day.app/YOUR_TOKEN/)"
+                      : "Webhook URL"}
                 </label>
                 <input
                   type="text"
                   value={url}
                   onChange={(e) => setUrl(e.target.value)}
                   placeholder={
-                    notifType === 'bark' ? 'https://api.day.app/key/' :
-                      notifType === 'feishu' ? 'https://open.feishu.cn/open-apis/bot/v2/hook/...' :
-                        'https://example.com/webhook'
+                    notifType === "pushplus"
+                      ? "从 pushplus.plus 获取 token"
+                      : notifType === "bark"
+                        ? "https://api.day.app/key/"
+                        : notifType === "feishu"
+                          ? "https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                          : "https://example.com/webhook"
                   }
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400"
                 />
+                {notifType === "pushplus" && (
+                  <p className="mt-2 text-xs text-gray-500">
+                    免费用户每日 200 条消息。获取 Token:{" "}
+                    <a
+                      href="https://www.pushplus.plus/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-700 underline"
+                    >
+                      访问 pushplus.plus
+                    </a>{" "}
+                    → 关注公众号并复制您的 Token
+                  </p>
+                )}
               </div>
 
               <div className="flex justify-end">
@@ -283,7 +436,9 @@ export default function Settings() {
                 >
                   {testSending ? (
                     <span className="w-3 h-3 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                  ) : Icons.send}
+                  ) : (
+                    Icons.send
+                  )}
                   测试发送
                 </button>
               </div>
@@ -296,7 +451,10 @@ export default function Settings() {
                   type="checkbox"
                   checked={settings.notification_enabled === true}
                   onChange={(e) =>
-                    setSettings({ ...settings, notification_enabled: e.target.checked })
+                    setSettings({
+                      ...settings,
+                      notification_enabled: e.target.checked,
+                    })
                   }
                   className="sr-only peer"
                 />
@@ -335,7 +493,9 @@ export default function Settings() {
         >
           {saving ? (
             <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-          ) : Icons.check}
+          ) : (
+            Icons.check
+          )}
           保存设置
         </button>
       </div>

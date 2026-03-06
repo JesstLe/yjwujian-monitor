@@ -1,7 +1,12 @@
-import axios from 'axios';
-import db from '../db/index';
+import axios from "axios";
+import db from "../db/index";
 
-export type NotificationType = 'bark' | 'feishu' | 'dingtalk' | 'custom';
+export type NotificationType =
+  | "bark"
+  | "feishu"
+  | "dingtalk"
+  | "pushplus"
+  | "custom";
 
 export interface NotificationConfig {
   url: string;
@@ -9,9 +14,20 @@ export interface NotificationConfig {
 }
 
 export class NotificationService {
-  static async send(type: NotificationType, config: NotificationConfig, title: string, content: string): Promise<boolean> {
-    if (!config.url) {
-      console.warn('Notification config missing URL');
+  static async send(
+    type: NotificationType,
+    config: NotificationConfig,
+    title: string,
+    content: string,
+  ): Promise<boolean> {
+    // PushPlus 只需要 token，其他类型需要 url
+    if (type !== "pushplus" && !config.url) {
+      console.warn("Notification config missing URL");
+      return false;
+    }
+    // PushPlus 需要 token
+    if (type === "pushplus" && !config.token) {
+      console.warn("PushPlus config missing token");
       return false;
     }
 
@@ -20,34 +36,49 @@ export class NotificationService {
       const finalContent = `${content}\n\n[${timestamp}]`;
 
       switch (type) {
-        case 'bark': {
+        case "bark": {
           // Bark: GET https://api.day.app/{token}/{title}/{content}
           // ConfigURL should be "https://api.day.app/TOKEN"
-          const baseUrl = config.url.endsWith('/') ? config.url.slice(0, -1) : config.url;
-          await axios.get(`${baseUrl}/${encodeURIComponent(title)}/${encodeURIComponent(finalContent)}?isArchive=1`);
+          const baseUrl = config.url.endsWith("/")
+            ? config.url.slice(0, -1)
+            : config.url;
+          await axios.get(
+            `${baseUrl}/${encodeURIComponent(title)}/${encodeURIComponent(finalContent)}?isArchive=1`,
+          );
           break;
         }
-        case 'feishu': {
+        case "feishu": {
           // Feishu: POST https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN
           await axios.post(config.url, {
-            msg_type: 'text',
-            content: { text: `${title}\n\n${finalContent}` }
+            msg_type: "text",
+            content: { text: `${title}\n\n${finalContent}` },
           });
           break;
         }
-        case 'dingtalk': {
+        case "dingtalk": {
           // DingTalk: POST https://oapi.dingtalk.com/robot/send?access_token=TOKEN
           await axios.post(config.url, {
-            msgtype: 'text',
-            text: { content: `${title}\n\n${finalContent}` }
+            msgtype: "text",
+            text: { content: `${title}\n\n${finalContent}` },
           });
           break;
         }
-        case 'custom': {
+        case "pushplus": {
+          // PushPlus: POST http://www.pushplus.plus/send
+          // 只需要 token，推送到微信公众号
+          const apiUrl = config.url || "http://www.pushplus.plus/send";
+          await axios.post(apiUrl, {
+            token: config.token,
+            title,
+            content: finalContent,
+          });
+          break;
+        }
+        case "custom": {
           await axios.post(config.url, {
             title,
             content: finalContent,
-            timestamp
+            timestamp,
           });
           break;
         }
@@ -64,13 +95,22 @@ export class NotificationService {
 }
 
 // Legacy/Global sender that reads settings from DB
-export async function sendNotification(payload: { title: string; body: string; data?: any }): Promise<void> {
+export async function sendNotification(payload: {
+  title: string;
+  body: string;
+  data?: any;
+}): Promise<void> {
   console.log(`[Notification] ${payload.title}: ${payload.body}`, payload.data);
 
   try {
-    const rows = db.prepare('SELECT key, value FROM settings WHERE key IN (?, ?)').all('notification_type', 'notification_config') as { key: string; value: string }[];
+    const rows = db
+      .prepare("SELECT key, value FROM settings WHERE key IN (?, ?)")
+      .all("notification_type", "notification_config") as {
+      key: string;
+      value: string;
+    }[];
     const settings: Record<string, string> = {};
-    rows.forEach(row => {
+    rows.forEach((row) => {
       settings[row.key] = row.value;
     });
 
@@ -79,7 +119,7 @@ export async function sendNotification(payload: { title: string; body: string; d
       try {
         config = JSON.parse(settings.notification_config);
       } catch (e) {
-        console.error('Failed to parse notification config:', e);
+        console.error("Failed to parse notification config:", e);
         return;
       }
 
@@ -87,10 +127,10 @@ export async function sendNotification(payload: { title: string; body: string; d
         settings.notification_type as NotificationType,
         config,
         payload.title,
-        payload.body
+        payload.body,
       );
     }
   } catch (error) {
-    console.error('Error in global sendNotification:', error);
+    console.error("Error in global sendNotification:", error);
   }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { generateToken, verifyToken, getTokenJti, getTokenExpiry, type JwtPayload } from '../../src/backend/utils/jwt';
 
 describe('jwt utils', () => {

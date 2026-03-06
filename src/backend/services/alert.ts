@@ -31,52 +31,79 @@ export function checkAndTriggerAlerts(): Alert[] {
 
   const newAlerts: Alert[] = [];
 
-  for (const item of watchlistItems) {
-    const existingAlert = db
-      .prepare(`
-        SELECT id FROM alerts 
-        WHERE watchlist_id = ? AND is_resolved = 0
-      `)
-      .get(item.watchlist_id);
-
-    if (existingAlert) continue;
-
-    const result = db
-      .prepare(`
-        INSERT INTO alerts (watchlist_id, item_id, triggered_price, target_price)
-        VALUES (?, ?, ?, ?)
-        RETURNING *
-      `)
-      .get(item.watchlist_id, item.item_id, item.item_current_price, item.target_price) as {
-      id: number;
-      watchlist_id: number;
-      item_id: string;
-      triggered_price: number;
-      target_price: number;
-      triggered_at: string;
-      is_read: number;
-      is_resolved: number;
-    };
-
-    const alert: Alert = {
-      id: result.id,
-      watchlistId: result.watchlist_id,
-      itemId: result.item_id,
-      triggeredPrice: result.triggered_price,
-      targetPrice: result.target_price,
-      triggeredAt: new Date(result.triggered_at),
-      isRead: result.is_read === 1,
-      isResolved: result.is_resolved === 1,
-    };
-
-    newAlerts.push(alert);
-
-    sendNotification({
-      title: '价格提醒',
-      body: `${item.item_name} 已降至 ¥${(item.item_current_price / 100).toFixed(2)}，低于目标价 ¥${(item.target_price / 100).toFixed(2)}`,
-      data: { alertId: alert.id, itemId: item.item_id },
-    });
+  if (watchlistItems.length === 0) {
+    return newAlerts;
   }
+
+  const watchlistIds = watchlistItems.map((item) => item.watchlist_id);
+  const placeholders = watchlistIds.map(() => "?").join(",");
+  const unresolvedRows = db
+    .prepare(
+      `
+      SELECT watchlist_id
+      FROM alerts
+      WHERE is_resolved = 0 AND watchlist_id IN (${placeholders})
+    `,
+    )
+    .all(...watchlistIds) as { watchlist_id: number }[];
+
+  const unresolvedSet = new Set(unresolvedRows.map((row) => row.watchlist_id));
+  const toInsert = watchlistItems.filter(
+    (item) => !unresolvedSet.has(item.watchlist_id),
+  );
+
+  const insertAlertStmt = db.prepare(`
+    INSERT OR IGNORE INTO alerts (watchlist_id, item_id, triggered_price, target_price)
+    VALUES (?, ?, ?, ?)
+    RETURNING *
+  `);
+
+  const insertMany = db.transaction((items: WatchlistRow[]) => {
+    for (const item of items) {
+      const result = insertAlertStmt.get(
+        item.watchlist_id,
+        item.item_id,
+        item.item_current_price,
+        item.target_price,
+      ) as
+        | {
+            id: number;
+            watchlist_id: number;
+            item_id: string;
+            triggered_price: number;
+            target_price: number;
+            triggered_at: string;
+            is_read: number;
+            is_resolved: number;
+          }
+        | undefined;
+
+      if (!result) {
+        continue;
+      }
+
+      const alert: Alert = {
+        id: result.id,
+        watchlistId: result.watchlist_id,
+        itemId: result.item_id,
+        triggeredPrice: result.triggered_price,
+        targetPrice: result.target_price,
+        triggeredAt: new Date(result.triggered_at),
+        isRead: result.is_read === 1,
+        isResolved: result.is_resolved === 1,
+      };
+
+      newAlerts.push(alert);
+
+      sendNotification({
+        title: '价格提醒',
+        body: `${item.item_name} 已降至 ¥${(item.item_current_price / 100).toFixed(2)}，低于目标价 ¥${(item.target_price / 100).toFixed(2)}`,
+        data: { alertId: alert.id, itemId: item.item_id },
+      });
+    }
+  });
+
+  insertMany(toInsert);
 
   return newAlerts;
 }

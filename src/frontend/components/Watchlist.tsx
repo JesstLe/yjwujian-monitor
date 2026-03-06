@@ -1,6 +1,10 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { WatchlistEntry, WatchlistGroup, Alert } from "@shared/types";
+
+const ACTIVE_POLL_MS = 30_000;
+const BACKGROUND_POLL_MS = 180_000;
 
 const Icons = {
   refresh: (
@@ -138,9 +142,40 @@ const Icons = {
       />
     </svg>
   ),
+  compare: (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+      />
+    </svg>
+  ),
+  close: (
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18L18 6M6 6l12 12"
+      />
+    </svg>
+  ),
 };
 
 export default function Watchlist() {
+  const navigate = useNavigate();
   const [entries, setEntries] = useState<WatchlistEntry[]>([]);
   const [groups, setGroups] = useState<WatchlistGroup[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
@@ -149,9 +184,15 @@ export default function Watchlist() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editPrice, setEditPrice] = useState<string>("");
+  const [isCompareMode, setIsCompareMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [addingToCompare, setAddingToCompare] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = useCallback(async (showLoading = false) => {
-    if (showLoading) setRefreshing(true);
+  // 手动刷新用的回调（不受 stopped 控制）
+  const manualRefresh = useCallback(async () => {
+    setRefreshing(true);
+    setError(null);
     try {
       const [watchlistData, groupsData, alertsData] = await Promise.all([
         api.watchlist.getAll(),
@@ -162,17 +203,93 @@ export default function Watchlist() {
       setGroups(groupsData);
       setAlerts(alertsData);
       setLastUpdated(new Date());
+    } catch (err) {
+      console.error("Failed to fetch watchlist data:", err);
+      setError(err instanceof Error ? err.message : "加载失败");
     } finally {
-      setLoading(false);
-      if (showLoading) setRefreshing(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(() => fetchData(), 30000);
-    return () => clearInterval(interval);
-  }, [fetchData]);
+    const fetchData = async () => {
+      setError(null);
+      try {
+        const [watchlistData, groupsData, alertsData] = await Promise.all([
+          api.watchlist.getAll(),
+          api.groups.getAll(),
+          api.alerts.getAll(true),
+        ]);
+        if (stopped) return;
+        setEntries(watchlistData);
+        setGroups(groupsData);
+        setAlerts(alertsData);
+        setLastUpdated(new Date());
+      } catch (err) {
+        console.error("Failed to fetch watchlist data:", err);
+        if (!stopped) {
+          setError(err instanceof Error ? err.message : "加载失败");
+        }
+      } finally {
+        if (!stopped) {
+          setLoading(false);
+        }
+      }
+    };
+
+    const getPollDelay = () =>
+      document.visibilityState === "hidden"
+        ? BACKGROUND_POLL_MS
+        : ACTIVE_POLL_MS;
+
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    let stopped = false;
+    let inFlight = false;
+
+    const runFetch = async () => {
+      if (stopped || inFlight) {
+        return;
+      }
+
+      inFlight = true;
+      try {
+        await fetchData();
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const scheduleNext = () => {
+      if (stopped || timer) return;
+      timer = setTimeout(async () => {
+        timer = null;
+        await runFetch();
+        if (stopped) {
+          return;
+        }
+        scheduleNext();
+      }, getPollDelay());
+    };
+
+    const handleVisibilityChange = () => {
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+      scheduleNext();
+    };
+
+    runFetch();
+    scheduleNext();
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      stopped = true;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
   const parsePrice = (yuan: string) => Math.round(parseFloat(yuan) * 100);
@@ -202,7 +319,7 @@ export default function Watchlist() {
       await api.watchlist.update(id, { targetPrice: parsePrice(editPrice) });
       setEditingId(null);
       setEditPrice("");
-      fetchData();
+      manualRefresh();
     } catch {
       alert("更新失败");
     }
@@ -211,7 +328,7 @@ export default function Watchlist() {
   const handleToggleAlert = async (id: number, enabled: boolean) => {
     try {
       await api.watchlist.update(id, { alertEnabled: !enabled });
-      fetchData();
+      manualRefresh();
     } catch {
       alert("更新失败");
     }
@@ -221,7 +338,7 @@ export default function Watchlist() {
     if (!confirm("确定要删除这个监控项吗？")) return;
     try {
       await api.watchlist.delete(id);
-      fetchData();
+      manualRefresh();
     } catch {
       alert("删除失败");
     }
@@ -232,7 +349,7 @@ export default function Watchlist() {
     if (!name) return;
     try {
       await api.groups.create({ name });
-      fetchData();
+      manualRefresh();
     } catch {
       alert("创建失败");
     }
@@ -241,11 +358,96 @@ export default function Watchlist() {
   const handleMarkAlertRead = async (alertId: number) => {
     try {
       await api.alerts.markRead(alertId);
-      fetchData();
+      manualRefresh();
     } catch {
       alert("标记失败");
     }
   };
+
+  const toggleSelect = (id: number) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const handleAddToCompare = async () => {
+    const selectedEntries = entries.filter((e) => selectedIds.has(e.id));
+    if (selectedEntries.length === 0) return;
+
+    setAddingToCompare(true);
+    try {
+      await Promise.all(
+        selectedEntries.map((entry) => {
+          if (!entry.item) return Promise.resolve();
+          return api.compare.add({
+            itemId: entry.item.id,
+            parentTypeId: entry.item.id,
+            name: entry.item.name,
+            imageUrl: entry.item.imageUrl,
+            captureUrls: entry.item.captureUrls || [],
+            serialNum: entry.item.serialNum || "",
+            currentPrice: entry.item.currentPrice,
+            category: entry.item.category,
+            rarity: entry.item.rarity,
+            hero: entry.item.hero,
+            weapon: entry.item.weapon,
+            starGrid: entry.item.starGrid,
+            variationInfo: entry.item.variationInfo,
+          });
+        }),
+      );
+      setIsCompareMode(false);
+      setSelectedIds(new Set());
+      navigate("/compare");
+    } catch {
+      alert("添加到对比列表失败");
+    } finally {
+      setAddingToCompare(false);
+    }
+  };
+
+  const cancelCompareMode = () => {
+    setIsCompareMode(false);
+    setSelectedIds(new Set());
+  };
+
+  const entryByItemId = useMemo(() => {
+    const map = new Map<string, WatchlistEntry>();
+    for (const entry of entries) {
+      if (!map.has(entry.itemId)) {
+        map.set(entry.itemId, entry);
+      }
+    }
+    return map;
+  }, [entries]);
+
+  const entriesByGroup = useMemo(() => {
+    const grouped = new Map<number, WatchlistEntry[]>();
+    for (const entry of entries) {
+      const existing = grouped.get(entry.groupId);
+      if (existing) {
+        existing.push(entry);
+      } else {
+        grouped.set(entry.groupId, [entry]);
+      }
+    }
+    return grouped;
+  }, [entries]);
+
+  const groupedEntries = useMemo(
+    () =>
+      groups.map((group) => ({
+        ...group,
+        entries: entriesByGroup.get(group.id) ?? [],
+      })),
+    [groups, entriesByGroup],
+  );
 
   if (loading) {
     return (
@@ -258,10 +460,27 @@ export default function Watchlist() {
     );
   }
 
-  const groupedEntries = groups.map((group) => ({
-    ...group,
-    entries: entries.filter((e) => e.groupId === group.id),
-  }));
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xl font-bold text-gray-900">监控列表</h2>
+          <button
+            onClick={() => manualRefresh()}
+            className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors"
+          >
+            {Icons.refresh}
+            重试
+          </button>
+        </div>
+        <div className="bg-red-50 border border-red-200 rounded-xl p-6 text-center">
+          <p className="text-red-600 font-medium">加载失败</p>
+          <p className="text-red-500 text-sm mt-1">{error}</p>
+          <p className="text-gray-500 text-xs mt-3">请检查浏览器控制台获取详细错误信息</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -273,8 +492,20 @@ export default function Watchlist() {
           </span>
         </div>
         <div className="flex items-center gap-2">
+          {entries.length > 0 && (
+            <button
+              onClick={() => setIsCompareMode(!isCompareMode)}
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg border transition-colors ${isCompareMode
+                ? "bg-purple-500 text-white border-purple-500 hover:bg-purple-600"
+                : "bg-purple-50 text-purple-600 border-purple-200 hover:bg-purple-100"
+                }`}
+            >
+              {Icons.compare}
+              {isCompareMode ? "取消选择" : "对比"}
+            </button>
+          )}
           <button
-            onClick={() => fetchData(true)}
+            onClick={() => manualRefresh()}
             disabled={refreshing}
             className="flex items-center gap-2 px-4 py-2 bg-white hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg border border-gray-200 shadow-sm transition-colors"
           >
@@ -304,7 +535,7 @@ export default function Watchlist() {
           </div>
           <div className="space-y-2">
             {alerts.slice(0, 5).map((alert) => {
-              const entry = entries.find((w) => w.itemId === alert.itemId);
+              const entry = entryByItemId.get(alert.itemId);
               return (
                 <div
                   key={alert.id}
@@ -388,7 +619,7 @@ export default function Watchlist() {
                   onClick={async () => {
                     if (confirm("确定删除这个分组吗？物品会移到默认分组")) {
                       await api.groups.delete(group.id);
-                      fetchData();
+                      manualRefresh();
                     }
                   }}
                   className="text-sm text-red-500 hover:text-red-600 transition-colors"
@@ -402,154 +633,222 @@ export default function Watchlist() {
               {group.entries.map((entry) => (
                 <div
                   key={entry.id}
-                  className="p-4 rounded-xl bg-white border border-gray-100 hover:border-blue-200 hover:shadow-md transition-all"
+                  className={`p-4 rounded-xl bg-white border transition-all ${selectedIds.has(entry.id)
+                    ? "border-purple-400 bg-purple-50 shadow-md"
+                    : "border-gray-100 hover:border-blue-200 hover:shadow-md"
+                    }`}
                 >
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-2">
-                        <h4 className="font-medium text-gray-900 truncate">
-                          {entry.item?.name || entry.itemId}
-                        </h4>
-                        <span
-                          className={`px-2 py-0.5 text-xs font-semibold rounded border ${
-                            entry.item?.rarity === "red"
-                              ? "bg-red-50 text-red-600 border-red-200"
-                              : "bg-amber-50 text-amber-600 border-amber-200"
-                          }`}
-                        >
-                          {entry.item?.rarity === "red" ? "红" : "金"}
-                        </span>
-                        {entry.item?.status === "draw" && (
-                          <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-50 text-purple-600 border border-purple-200">
-                            抽签期
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                        <span className="text-blue-600 font-semibold">
-                          {entry.item
-                            ? formatPrice(entry.item.currentPrice)
-                            : "-"}
-                        </span>
-                        {entry.targetPrice && (
-                          <span className="text-gray-600">
-                            目标:{" "}
-                            <span className="text-gray-800 font-medium">
-                              {formatPrice(entry.targetPrice)}
-                            </span>
-                          </span>
-                        )}
-                        {entry.item?.lastCheckedAt && (
-                          <span
-                            className={`text-xs ${getFreshnessClass(new Date(entry.item.lastCheckedAt))}`}
-                          >
-                            更新于{" "}
-                            {formatLastUpdated(
-                              new Date(entry.item.lastCheckedAt),
-                            )}
-                          </span>
-                        )}
-                      </div>
-
-                      {editingId === entry.id ? (
-                        <div className="flex items-center gap-2 mt-3">
-                          <input
-                            type="number"
-                            step="0.01"
-                            placeholder="目标价格 (元)"
-                            value={editPrice}
-                            onChange={(e) => setEditPrice(e.target.value)}
-                            className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 w-32 focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200"
-                          />
-                          <button
-                            onClick={() => handleUpdatePrice(entry.id)}
-                            className="px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
-                          >
-                            保存
-                          </button>
-                          <button
-                            onClick={() => {
-                              setEditingId(null);
-                              setEditPrice("");
-                            }}
-                            className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm transition-colors"
-                          >
-                            取消
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setEditingId(entry.id);
-                            setEditPrice(
-                              entry.targetPrice
-                                ? (entry.targetPrice / 100).toString()
-                                : "",
-                            );
-                          }}
-                          className="flex items-center gap-1 mt-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
-                        >
-                          {Icons.edit}
-                          {entry.targetPrice ? "修改目标价" : "设置目标价"}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
-                        <div className="relative">
-                          <input
-                            type="checkbox"
-                            checked={entry.alertEnabled}
-                            onChange={() =>
-                              handleToggleAlert(entry.id, entry.alertEnabled)
-                            }
-                            className="sr-only peer"
-                          />
-                          <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 shadow-sm" />
-                        </div>
-                        <span className="hidden sm:inline">提醒</span>
-                      </label>
-                      <button
-                        onClick={() => handleDelete(entry.id)}
-                        className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                        title="删除"
+                  <div className="flex items-start gap-3">
+                    {isCompareMode && (
+                      <div
+                        className="flex-shrink-0 mt-1 cursor-pointer"
+                        onClick={() => toggleSelect(entry.id)}
                       >
-                        {Icons.trash}
-                      </button>
-                    </div>
-                  </div>
-
-                  {entry.targetPrice &&
-                    entry.item &&
-                    entry.item.currentPrice <= entry.targetPrice && (
-                      <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 to-white border border-emerald-200 rounded-xl">
-                        <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
-                          <svg
-                            className="w-4 h-4"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                            />
-                          </svg>
-                          价格已达标！当前{" "}
-                          {formatPrice(entry.item.currentPrice)} ≤ 目标{" "}
-                          {formatPrice(entry.targetPrice)}
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${selectedIds.has(entry.id)
+                            ? "bg-purple-500 border-purple-500"
+                            : "border-gray-300 hover:border-purple-400"
+                            }`}
+                        >
+                          {selectedIds.has(entry.id) && (
+                            <svg
+                              className="w-3 h-3 text-white"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={3}
+                                d="M5 13l4 4L19 7"
+                              />
+                            </svg>
+                          )}
                         </div>
                       </div>
                     )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <h4 className="font-medium text-gray-900 truncate">
+                              {entry.item?.name || entry.itemId}
+                            </h4>
+                            <span
+                              className={`px-2 py-0.5 text-xs font-semibold rounded border ${entry.item?.rarity === "red"
+                                ? "bg-red-50 text-red-600 border-red-200"
+                                : "bg-amber-50 text-amber-600 border-amber-200"
+                                }`}
+                            >
+                              {entry.item?.rarity === "red" ? "红" : "金"}
+                            </span>
+                            {entry.item?.status === "draw" && (
+                              <span className="px-2 py-0.5 text-xs font-medium rounded bg-purple-50 text-purple-600 border border-purple-200">
+                                抽签期
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                            <span className="text-blue-600 font-semibold">
+                              {entry.item
+                                ? formatPrice(entry.item.currentPrice)
+                                : "-"}
+                            </span>
+                            {entry.targetPrice && (
+                              <span className="text-gray-600">
+                                目标:{" "}
+                                <span className="text-gray-800 font-medium">
+                                  {formatPrice(entry.targetPrice)}
+                                </span>
+                              </span>
+                            )}
+                            {entry.item?.lastCheckedAt && (
+                              <span
+                                className={`text-xs ${getFreshnessClass(new Date(entry.item.lastCheckedAt))}`}
+                              >
+                                更新于{" "}
+                                {formatLastUpdated(
+                                  new Date(entry.item.lastCheckedAt),
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {editingId === entry.id ? (
+                            <div className="flex items-center gap-2 mt-3">
+                              <input
+                                type="number"
+                                step="0.01"
+                                placeholder="目标价格 (元)"
+                                value={editPrice}
+                                onChange={(e) => setEditPrice(e.target.value)}
+                                className="px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-lg text-sm text-gray-900 w-32 focus:outline-none focus:border-blue-300 focus:ring-1 focus:ring-blue-200"
+                              />
+                              <button
+                                onClick={() => handleUpdatePrice(entry.id)}
+                                className="px-3 py-1.5 bg-blue-500 text-white text-sm font-medium rounded-lg hover:bg-blue-600 transition-colors"
+                              >
+                                保存
+                              </button>
+                              <button
+                                onClick={() => {
+                                  setEditingId(null);
+                                  setEditPrice("");
+                                }}
+                                className="px-3 py-1.5 text-gray-500 hover:text-gray-700 text-sm transition-colors"
+                              >
+                                取消
+                              </button>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setEditingId(entry.id);
+                                setEditPrice(
+                                  entry.targetPrice
+                                    ? (entry.targetPrice / 100).toString()
+                                    : "",
+                                );
+                              }}
+                              className="flex items-center gap-1 mt-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                            >
+                              {Icons.edit}
+                              {entry.targetPrice ? "修改目标价" : "设置目标价"}
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+                            <div className="relative">
+                              <input
+                                type="checkbox"
+                                checked={entry.alertEnabled}
+                                onChange={() =>
+                                  handleToggleAlert(
+                                    entry.id,
+                                    entry.alertEnabled,
+                                  )
+                                }
+                                className="sr-only peer"
+                              />
+                              <div className="w-9 h-5 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-500 shadow-sm" />
+                            </div>
+                            <span className="hidden sm:inline">提醒</span>
+                          </label>
+                          <button
+                            onClick={() => handleDelete(entry.id)}
+                            className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="删除"
+                          >
+                            {Icons.trash}
+                          </button>
+                        </div>
+                      </div>
+
+                      {entry.targetPrice &&
+                        entry.item &&
+                        entry.item.currentPrice <= entry.targetPrice && (
+                          <div className="mt-3 p-3 bg-gradient-to-r from-emerald-50 to-white border border-emerald-200 rounded-xl">
+                            <div className="flex items-center gap-2 text-emerald-600 text-sm font-medium">
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                />
+                              </svg>
+                              价格已达标！当前{" "}
+                              {formatPrice(entry.item.currentPrice)} ≤ 目标{" "}
+                              {formatPrice(entry.targetPrice)}
+                            </div>
+                          </div>
+                        )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         ))
+      )}
+
+      {/* 底部浮动对比栏 */}
+      {isCompareMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50">
+          <div className="flex items-center gap-4 px-6 py-4 bg-white rounded-2xl shadow-xl border border-purple-200">
+            <span className="text-sm text-gray-600">
+              已选择{" "}
+              <span className="font-semibold text-purple-600">
+                {selectedIds.size}
+              </span>{" "}
+              个物品
+            </span>
+            <div className="w-px h-6 bg-gray-200" />
+            <button
+              onClick={handleAddToCompare}
+              disabled={addingToCompare}
+              className="flex items-center gap-2 px-4 py-2 bg-purple-500 hover:bg-purple-600 disabled:opacity-50 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {Icons.compare}
+              {addingToCompare ? "添加中..." : "加入对比"}
+            </button>
+            <button
+              onClick={cancelCompareMode}
+              className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            >
+              {Icons.close}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

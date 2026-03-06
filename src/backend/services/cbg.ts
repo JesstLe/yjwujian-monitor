@@ -1,11 +1,21 @@
 import axios, { AxiosInstance } from "axios";
 import { v4 as uuidv4 } from "uuid";
-import type { Item, ItemCategory, ItemRarity, StarGrid, VariationInfo, VariationAttribute } from "@shared/types";
+import type {
+  Item,
+  ItemCategory,
+  ItemRarity,
+  StarGrid,
+  VariationInfo,
+  VariationAttribute,
+} from "@shared/types";
 
 const CBG_BASE_URL = process.env.CBG_BASE_URL || "https://yjwujian.cbg.163.com";
 const REQUEST_DELAY = parseInt(process.env.CBG_REQUEST_DELAY_MS || "1000", 10);
 const MAX_LOOKUP_PAGES = 10; // Bounded search for getItemById
 const MAX_LISTING_FILTER_SCAN_PAGES = 80;
+const LISTING_FILTER_CACHE_TTL_MS = 2 * 60 * 1000;
+const MAX_LISTING_FILTER_CACHE_ENTRIES = 100;
+const ITEM_LOOKUP_CACHE_TTL_MS = 2 * 60 * 1000;
 
 // New aggregate API response types
 interface CBGEquipType {
@@ -106,6 +116,19 @@ interface ListingFilters {
   targetValue?: number;
   minValue?: number;
   maxValue?: number;
+}
+
+interface ListingFilterCacheEntry {
+  updatedAt: number;
+  matched: Item[];
+  nextQueryPage: number;
+  reachedEnd: boolean;
+  exhaustedByLimit: boolean;
+}
+
+interface ItemLookupCacheEntry {
+  updatedAt: number;
+  item: Item | null;
 }
 
 // Category mapping based on search_type (string or number) and kindId
@@ -223,7 +246,9 @@ function getCategoryFromKindId(kindId: number): ItemCategory {
  * 解析谪星物品的变体信息
  * 将 API 返回的 variation_info 转换为结构化的 VariationInfo 对象
  */
-function parseVariationInfo(variationInfo: CBGRecommendItem["other_info"]["variation_info"]): VariationInfo | null {
+function parseVariationInfo(
+  variationInfo: CBGRecommendItem["other_info"]["variation_info"],
+): VariationInfo | null {
   if (!variationInfo) {
     return null;
   }
@@ -251,6 +276,9 @@ function parseVariationInfo(variationInfo: CBGRecommendItem["other_info"]["varia
 class CBGClient {
   private client: AxiosInstance;
   private lastRequestTime = 0;
+  private requestQueue: Promise<void> = Promise.resolve();
+  private listingFilterCache = new Map<string, ListingFilterCacheEntry>();
+  private itemLookupCache = new Map<string, ItemLookupCacheEntry>();
 
   constructor() {
     this.client = axios.create({
@@ -265,18 +293,78 @@ class CBGClient {
   }
 
   private async waitForRateLimit(): Promise<void> {
-    const now = Date.now();
-    const elapsed = now - this.lastRequestTime;
-    if (elapsed < REQUEST_DELAY) {
-      await new Promise((resolve) =>
-        setTimeout(resolve, REQUEST_DELAY - elapsed),
-      );
-    }
-    this.lastRequestTime = Date.now();
+    const run = this.requestQueue
+      .catch(() => undefined)
+      .then(async () => {
+        const now = Date.now();
+        const elapsed = now - this.lastRequestTime;
+        if (elapsed < REQUEST_DELAY) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, REQUEST_DELAY - elapsed),
+          );
+        }
+        this.lastRequestTime = Date.now();
+      });
+
+    this.requestQueue = run;
+    await run;
   }
 
   private generateSessionId(): string {
     return uuidv4().toUpperCase();
+  }
+
+  private getListingFilterCacheKey(
+    equipType: string,
+    searchType: string,
+    count: number,
+    orderBy: string,
+    filters: ListingFilters,
+  ): string {
+    return JSON.stringify({
+      equipType,
+      searchType,
+      count,
+      orderBy,
+      variationUnlockLevel: filters.variationUnlockLevel ?? null,
+      slotIndex: filters.slotIndex ?? null,
+      targetValue: filters.targetValue ?? null,
+      minValue: filters.minValue ?? null,
+      maxValue: filters.maxValue ?? null,
+    });
+  }
+
+  private pruneListingFilterCache(): void {
+    const now = Date.now();
+
+    for (const [key, value] of this.listingFilterCache.entries()) {
+      if (now - value.updatedAt > LISTING_FILTER_CACHE_TTL_MS) {
+        this.listingFilterCache.delete(key);
+      }
+    }
+
+    if (this.listingFilterCache.size <= MAX_LISTING_FILTER_CACHE_ENTRIES) {
+      return;
+    }
+
+    const entriesByOldest = [...this.listingFilterCache.entries()].sort(
+      (a, b) => a[1].updatedAt - b[1].updatedAt,
+    );
+
+    const removeCount =
+      this.listingFilterCache.size - MAX_LISTING_FILTER_CACHE_ENTRIES;
+    for (let i = 0; i < removeCount; i += 1) {
+      this.listingFilterCache.delete(entriesByOldest[i][0]);
+    }
+  }
+
+  private pruneItemLookupCache(): void {
+    const now = Date.now();
+    for (const [key, value] of this.itemLookupCache.entries()) {
+      if (now - value.updatedAt > ITEM_LOOKUP_CACHE_TTL_MS) {
+        this.itemLookupCache.delete(key);
+      }
+    }
   }
 
   /**
@@ -501,10 +589,27 @@ class CBGClient {
    * Get item by ID with bounded search across categories/pages
    * Used for watchlist monitoring - resolves equip_type across categories
    */
-  async getItemById(equipType: string): Promise<Item | null> {
+  async getItemById(
+    equipType: string,
+    options?: { bypassCache?: boolean },
+  ): Promise<Item | null> {
+    const bypassCache = options?.bypassCache === true;
+
+    if (!bypassCache) {
+      this.pruneItemLookupCache();
+      const cached = this.itemLookupCache.get(equipType);
+      if (cached && Date.now() - cached.updatedAt <= ITEM_LOOKUP_CACHE_TTL_MS) {
+        return cached.item;
+      }
+    }
+
     // First, try to get detail directly (if that endpoint exists)
     const detailItem = await this.getItemDetail(equipType);
     if (detailItem) {
+      this.itemLookupCache.set(equipType, {
+        updatedAt: Date.now(),
+        item: detailItem,
+      });
       return detailItem;
     }
 
@@ -526,6 +631,10 @@ class CBGClient {
 
           const found = result.items.find((item) => item.id === equipType);
           if (found) {
+            this.itemLookupCache.set(equipType, {
+              updatedAt: Date.now(),
+              item: found,
+            });
             return found;
           }
 
@@ -547,6 +656,10 @@ class CBGClient {
 
             const found = result.items.find((item) => item.id === equipType);
             if (found) {
+              this.itemLookupCache.set(equipType, {
+                updatedAt: Date.now(),
+                item: found,
+              });
               return found;
             }
 
@@ -560,6 +673,10 @@ class CBGClient {
       }
     }
 
+    this.itemLookupCache.set(equipType, {
+      updatedAt: Date.now(),
+      item: null,
+    });
     return null;
   }
 
@@ -567,6 +684,7 @@ class CBGClient {
    * Get sub-item listings for a specific equip type
    * @param equipType The aggregate item type ID (e.g. 3402116 for 通天狐妖)
    * @param searchType The search type string (e.g. 'role_skin')
+   * @param parentRarity Optional parent item rarity to inherit for sub-items
    */
   async getEquipListByType(
     equipType: string,
@@ -575,6 +693,7 @@ class CBGClient {
     count: number = 15,
     orderBy: string = "price ASC",
     filters?: ListingFilters,
+    parentRarity?: ItemRarity,
   ): Promise<{ items: Item[]; isLastPage: boolean }> {
     const fetchRecommendPage = async (queryPage: number) => {
       await this.waitForRateLimit();
@@ -610,7 +729,7 @@ class CBGClient {
       }
 
       const items = response.data.result.map((item) =>
-        this.transformRecommendItem(item, searchType),
+        this.transformRecommendItem(item, searchType, parentRarity),
       );
 
       return {
@@ -662,9 +781,25 @@ class CBGClient {
 
       const targetStart = (page - 1) * count;
       const targetEnd = targetStart + count;
-      const matched: Item[] = [];
-      let queryPage = 1;
-      let reachedEnd = false;
+      this.pruneListingFilterCache();
+
+      const filterCacheKey = this.getListingFilterCacheKey(
+        equipType,
+        searchType,
+        count,
+        orderBy,
+        filters || {},
+      );
+
+      const now = Date.now();
+      const cached = this.listingFilterCache.get(filterCacheKey);
+      const validCached =
+        cached && now - cached.updatedAt <= LISTING_FILTER_CACHE_TTL_MS;
+
+      let matched = validCached ? [...cached.matched] : [];
+      let queryPage = validCached ? cached.nextQueryPage : 1;
+      let reachedEnd = validCached ? cached.reachedEnd : false;
+      let exhaustedByLimit = validCached ? cached.exhaustedByLimit : false;
 
       while (
         queryPage <= MAX_LISTING_FILTER_SCAN_PAGES &&
@@ -677,9 +812,21 @@ class CBGClient {
         queryPage += 1;
       }
 
+      if (queryPage > MAX_LISTING_FILTER_SCAN_PAGES && !reachedEnd) {
+        exhaustedByLimit = true;
+      }
+
+      this.listingFilterCache.set(filterCacheKey, {
+        updatedAt: now,
+        matched,
+        nextQueryPage: queryPage,
+        reachedEnd,
+        exhaustedByLimit,
+      });
+
       const pageItems = matched.slice(targetStart, targetEnd);
       const hasMoreMatched = matched.length > targetEnd;
-      const isLastPage = reachedEnd && !hasMoreMatched;
+      const isLastPage = (reachedEnd || exhaustedByLimit) && !hasMoreMatched;
 
       return {
         items: pageItems,
@@ -694,6 +841,7 @@ class CBGClient {
   private transformRecommendItem(
     item: CBGRecommendItem,
     searchType: string,
+    parentRarity?: ItemRarity,
   ): Item {
     // Extract serial number from basic_attrs
     let serialNum: string | null = null;
@@ -722,6 +870,10 @@ class CBGClient {
       ],
     };
 
+    // 子物品继承父物品的稀有度，而不是根据红星数量判断
+    // red_star_num 表示属性品质为5星的数量，不代表物品本身的稀有度
+    const rarity = parentRarity || "gold";
+
     return {
       id: item.equipid.toString(), // Individual item ID
       name: item.format_equip_name,
@@ -729,7 +881,7 @@ class CBGClient {
       captureUrls: item.other_info.capture_url || [],
       serialNum,
       category: SEARCH_TYPE_MAP[searchType] || "item",
-      rarity: item.other_info?.variation_info?.red_star_num ? "red" : "gold", // Heuristic: has red stars -> red rarity
+      rarity,
       hero: null, // Listings don't always have this info easily accessible, relies on aggregate context
       weapon: null,
       starGrid,

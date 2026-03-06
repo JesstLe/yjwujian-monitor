@@ -19,15 +19,18 @@ import { Resend } from 'resend';
 describe('EmailService', () => {
   let emailService: EmailService;
   let mockResendInstance: { emails: { send: ReturnType<typeof vi.fn> } };
+  const originalResendApiKey = process.env.RESEND_API_KEY;
 
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.RESEND_API_KEY = 'test-api-key';
     emailService = new EmailService();
     mockResendInstance = new Resend() as unknown as { emails: { send: ReturnType<typeof vi.fn> } };
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    process.env.RESEND_API_KEY = originalResendApiKey;
   });
 
   describe('sendVerificationEmail', () => {

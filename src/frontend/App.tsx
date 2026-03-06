@@ -9,6 +9,7 @@ import ComparePage from "./components/ComparePage";
 import Compare3DPage from "./components/Compare3DPage";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
+import VerifyEmailPage from "./components/VerifyEmailPage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LayoutWrapper } from "./components/LayoutWrapper";
 
@@ -19,6 +20,7 @@ export default function App() {
         {/* Public routes */}
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/verify-email" element={<VerifyEmailPage />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
