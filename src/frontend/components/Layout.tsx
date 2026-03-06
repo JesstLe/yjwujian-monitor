@@ -270,9 +270,8 @@ export default function Layout({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t border-gray-200 mt-auto bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
-            <span>永劫无间藏宝阁监控系统 v1.0</span>
-            <span>数据来源: 网易藏宝阁</span>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-xs text-gray-500">
+            <span>本项目仅供学习交流使用，与任何官方平台无关</span>
           </div>
         </div>
       </footer>
