@@ -424,6 +424,11 @@ router.get("/type/:id/listings", async (req, res) => {
       searchType = "role_skin",
       page = 1,
       sort = "price ASC",
+      variationUnlockLevel,
+      slotIndex,
+      targetValue,
+      minValue,
+      maxValue,
     } = req.query;
 
     const result = await cbgClient.getEquipListByType(
@@ -432,6 +437,15 @@ router.get("/type/:id/listings", async (req, res) => {
       Number(page),
       15, // Default count
       String(sort),
+      {
+        variationUnlockLevel: variationUnlockLevel
+          ? Number(variationUnlockLevel)
+          : undefined,
+        slotIndex: slotIndex ? Number(slotIndex) : undefined,
+        targetValue: targetValue ? Number(targetValue) : undefined,
+        minValue: minValue ? Number(minValue) : undefined,
+        maxValue: maxValue ? Number(maxValue) : undefined,
+      },
     );
 
     res.json({

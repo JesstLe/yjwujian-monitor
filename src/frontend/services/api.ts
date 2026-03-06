@@ -87,13 +87,40 @@ export const api = {
 
     getListings: (
       id: string,
-      params?: { searchType?: string; page?: number; sort?: string },
+      params?: {
+        searchType?: string;
+        page?: number;
+        sort?: string;
+        variationUnlockLevel?: number;
+        slotIndex?: number;
+        targetValue?: number;
+        minValue?: number;
+        maxValue?: number;
+      },
     ) => {
-      const { searchType, page, sort } = params || {};
+      const {
+        searchType,
+        page,
+        sort,
+        variationUnlockLevel,
+        slotIndex,
+        targetValue,
+        minValue,
+        maxValue,
+      } = params || {};
       const queryParams = new URLSearchParams();
       if (searchType) queryParams.append("searchType", searchType);
       if (page) queryParams.append("page", String(page));
       if (sort) queryParams.append("sort", sort);
+      if (variationUnlockLevel !== undefined) {
+        queryParams.append("variationUnlockLevel", String(variationUnlockLevel));
+      }
+      if (slotIndex !== undefined) queryParams.append("slotIndex", String(slotIndex));
+      if (targetValue !== undefined) {
+        queryParams.append("targetValue", String(targetValue));
+      }
+      if (minValue !== undefined) queryParams.append("minValue", String(minValue));
+      if (maxValue !== undefined) queryParams.append("maxValue", String(maxValue));
       return fetchApiWithMeta<Item[]>(
         `/items/type/${id}/listings?${queryParams}`,
       );

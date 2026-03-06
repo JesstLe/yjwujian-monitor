@@ -136,15 +136,7 @@ export default function SearchPanel() {
     } finally {
       setLoading(false);
     }
-  }, [
-    query,
-    category,
-    rarity,
-    minPrice,
-    maxPrice,
-    variationUnlockLevel,
-    page,
-  ]);
+  }, [query, category, rarity, minPrice, maxPrice, variationUnlockLevel, page]);
 
   // Debounce search
   useEffect(() => {
@@ -155,14 +147,7 @@ export default function SearchPanel() {
   // Reset page when filters change
   useEffect(() => {
     setPage(1);
-  }, [
-    query,
-    category,
-    rarity,
-    minPrice,
-    maxPrice,
-    variationUnlockLevel,
-  ]);
+  }, [query, category, rarity, minPrice, maxPrice, variationUnlockLevel]);
 
   const handleAddToWatchlist = async (item: Item) => {
     try {
@@ -204,7 +189,7 @@ export default function SearchPanel() {
       <aside className="w-full lg:w-64 flex-shrink-0 space-y-8">
         {/* Category Filter */}
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
             物品分类
           </h3>
           <div className="space-y-1">
@@ -215,7 +200,7 @@ export default function SearchPanel() {
                 className={`w-full text-left px-4 py-2.5 rounded-xl transition-all ${
                   category === cat.value
                     ? "bg-blue-50 text-blue-600 border border-blue-200"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 border border-transparent"
+                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 border border-transparent"
                 }`}
               >
                 {cat.label}
@@ -224,7 +209,7 @@ export default function SearchPanel() {
           </div>
 
           <div className="mt-4 pl-3 border-l border-gray-200 space-y-2">
-            <label className="text-xs font-medium text-gray-500 flex items-center gap-2">
+            <label className="text-xs font-bold text-gray-700 flex items-center gap-2">
               <span className="text-amber-500">★</span>
               星格（目录子筛选）
             </label>
@@ -244,7 +229,7 @@ export default function SearchPanel() {
 
         {/* Price Filter */}
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
             价格区间 (元)
           </h3>
           <div className="flex items-center gap-2">
@@ -268,7 +253,7 @@ export default function SearchPanel() {
 
         {/* Rarity Filter */}
         <div className="space-y-3">
-          <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider">
             稀有度
           </h3>
           <div className="space-y-2">
@@ -278,7 +263,7 @@ export default function SearchPanel() {
                 className={`flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all shadow-sm ${
                   rarity === r.value
                     ? `bg-white ${r.color}`
-                    : "border-gray-200 bg-white text-gray-500 hover:border-gray-300"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
                 }`}
               >
                 <div
@@ -313,7 +298,6 @@ export default function SearchPanel() {
             ))}
           </div>
         </div>
-
       </aside>
 
       {/* Main Content */}

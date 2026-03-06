@@ -5,6 +5,7 @@ import type { Item, ItemCategory, ItemRarity, StarGrid, VariationInfo, Variation
 const CBG_BASE_URL = process.env.CBG_BASE_URL || "https://yjwujian.cbg.163.com";
 const REQUEST_DELAY = parseInt(process.env.CBG_REQUEST_DELAY_MS || "1000", 10);
 const MAX_LOOKUP_PAGES = 10; // Bounded search for getItemById
+const MAX_LISTING_FILTER_SCAN_PAGES = 80;
 
 // New aggregate API response types
 interface CBGEquipType {
@@ -97,6 +98,14 @@ interface CBGRecommendResponse {
   paging: {
     is_last_page: boolean;
   };
+}
+
+interface ListingFilters {
+  variationUnlockLevel?: number;
+  slotIndex?: number;
+  targetValue?: number;
+  minValue?: number;
+  maxValue?: number;
 }
 
 // Category mapping based on search_type (string or number) and kindId
@@ -565,19 +574,27 @@ class CBGClient {
     page: number = 1,
     count: number = 15,
     orderBy: string = "price ASC",
+    filters?: ListingFilters,
   ): Promise<{ items: Item[]; isLastPage: boolean }> {
-    await this.waitForRateLimit();
+    const fetchRecommendPage = async (queryPage: number) => {
+      await this.waitForRateLimit();
 
-    const params = new URLSearchParams();
-    params.append("client_type", "h5");
-    params.append("act", "recommd_by_role");
-    params.append("equip_type", equipType);
-    params.append("search_type", searchType);
-    params.append("page", page.toString());
-    params.append("count", count.toString());
-    params.append("order_by", orderBy);
+      const params = new URLSearchParams();
+      params.append("client_type", "h5");
+      params.append("act", "recommd_by_role");
+      params.append("equip_type", equipType);
+      params.append("search_type", searchType);
+      params.append("page", queryPage.toString());
+      params.append("count", count.toString());
+      params.append("order_by", orderBy);
 
-    try {
+      if (filters?.variationUnlockLevel) {
+        params.append(
+          "variation_unlock_level",
+          String(filters.variationUnlockLevel),
+        );
+      }
+
       const response = await this.client.post<CBGRecommendResponse>(
         "/cgi-bin/recommend.py",
         params,
@@ -599,6 +616,74 @@ class CBGClient {
       return {
         items,
         isLastPage: response.data.paging.is_last_page,
+      };
+    };
+
+    const hasSlotFilter =
+      filters?.slotIndex !== undefined ||
+      filters?.targetValue !== undefined ||
+      filters?.minValue !== undefined ||
+      filters?.maxValue !== undefined;
+
+    const matchesSlotFilter = (item: Item) => {
+      if (!hasSlotFilter) {
+        return true;
+      }
+
+      const slotIndex = filters?.slotIndex;
+      if (!slotIndex || slotIndex < 1 || slotIndex > 4) {
+        return true;
+      }
+
+      const slotValue = item.starGrid.slots[slotIndex - 1];
+      if (slotValue === null) {
+        return false;
+      }
+
+      if (filters?.targetValue !== undefined) {
+        return slotValue === filters.targetValue;
+      }
+
+      if (filters?.minValue !== undefined && slotValue < filters.minValue) {
+        return false;
+      }
+
+      if (filters?.maxValue !== undefined && slotValue > filters.maxValue) {
+        return false;
+      }
+
+      return true;
+    };
+
+    try {
+      if (!hasSlotFilter) {
+        return fetchRecommendPage(page);
+      }
+
+      const targetStart = (page - 1) * count;
+      const targetEnd = targetStart + count;
+      const matched: Item[] = [];
+      let queryPage = 1;
+      let reachedEnd = false;
+
+      while (
+        queryPage <= MAX_LISTING_FILTER_SCAN_PAGES &&
+        !reachedEnd &&
+        matched.length < targetEnd
+      ) {
+        const { items, isLastPage } = await fetchRecommendPage(queryPage);
+        matched.push(...items.filter(matchesSlotFilter));
+        reachedEnd = isLastPage;
+        queryPage += 1;
+      }
+
+      const pageItems = matched.slice(targetStart, targetEnd);
+      const hasMoreMatched = matched.length > targetEnd;
+      const isLastPage = reachedEnd && !hasMoreMatched;
+
+      return {
+        items: pageItems,
+        isLastPage,
       };
     } catch (error) {
       console.error("Failed to fetch sub-item list:", error);

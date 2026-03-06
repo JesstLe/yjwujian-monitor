@@ -27,6 +27,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [showDetail, setShowDetail] = useState(false);
     const [slotIndex, setSlotIndex] = useState<string>('');
+    const [variationUnlockLevel, setVariationUnlockLevel] = useState<string>('');
     const [targetValue, setTargetValue] = useState<string>('');
     const [minValue, setMinValue] = useState<string>('');
     const [maxValue, setMaxValue] = useState<string>('');
@@ -54,6 +55,11 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                 searchType,
                 page: isLoadMore ? page : 1, // Use current page state for load more, or reset to 1
                 sort,
+                variationUnlockLevel: variationUnlockLevel ? Number(variationUnlockLevel) : undefined,
+                slotIndex: slotIndex ? Number(slotIndex) : undefined,
+                targetValue: targetValue ? Number(targetValue) : undefined,
+                minValue: minValue ? Number(minValue) : undefined,
+                maxValue: maxValue ? Number(maxValue) : undefined,
             });
 
             if (isLoadMore) {
@@ -70,7 +76,17 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
             setLoading(false);
             setLoadingMore(false);
         }
-    }, [equipType, searchType, sort, page]);
+    }, [
+        equipType,
+        searchType,
+        sort,
+        page,
+        variationUnlockLevel,
+        slotIndex,
+        targetValue,
+        minValue,
+        maxValue,
+    ]);
 
     // Initial fetch or sort change
     useEffect(() => {
@@ -84,7 +100,16 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
         setPage(1);
         fetchItems(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [equipType, searchType, sort]);
+    }, [
+        equipType,
+        searchType,
+        sort,
+        variationUnlockLevel,
+        slotIndex,
+        targetValue,
+        minValue,
+        maxValue,
+    ]);
 
     // Effect for page change (Load More)
     useEffect(() => {
@@ -109,32 +134,6 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
         }
     };
 
-    const filteredItems = items.filter((item) => {
-        if (!slotIndex) {
-            return true;
-        }
-
-        const index = Number(slotIndex) - 1;
-        const value = item.starGrid?.slots?.[index];
-        if (value === null || value === undefined) {
-            return false;
-        }
-
-        if (targetValue) {
-            return value === Number(targetValue);
-        }
-
-        if (minValue && value < Number(minValue)) {
-            return false;
-        }
-
-        if (maxValue && value > Number(maxValue)) {
-            return false;
-        }
-
-        return true;
-    });
-
     return (
         <div className={`space-y-4 ${className}`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -142,7 +141,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
                     在售列表
                     <span className="text-sm font-normal text-slate-500 ml-2">
-                        共 {filteredItems.length}{hasMore ? '+' : ''} 件
+                        共 {items.length}{hasMore ? '+' : ''} 件
                     </span>
                 </h2>
 
@@ -167,6 +166,16 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     </div>
 
                     <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={variationUnlockLevel}
+                            onChange={(e) => setVariationUnlockLevel(e.target.value)}
+                            className="px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50"
+                        >
+                            <option value="">星格</option>
+                            <option value="2">星格部分解封</option>
+                            <option value="1">星格全解封</option>
+                        </select>
+
                         <select
                             value={slotIndex}
                             onChange={(e) => setSlotIndex(e.target.value)}
@@ -206,6 +215,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <button
                             onClick={() => {
                                 setSlotIndex('');
+                                setVariationUnlockLevel('');
                                 setTargetValue('');
                                 setMinValue('');
                                 setMaxValue('');
@@ -230,14 +240,14 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <div key={i} className="h-80 rounded-xl bg-slate-800/30 animate-pulse" />
                     ))}
                 </div>
-            ) : filteredItems.length === 0 ? (
+            ) : items.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 bg-slate-900/30 rounded-xl border border-slate-800/50">
                     <p className="text-lg font-medium text-slate-400">当前筛选下暂无在售物品</p>
                 </div>
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {filteredItems.map((item) => (
+                        {items.map((item) => (
                             <ItemCard
                                 key={item.id}
                                 item={item}

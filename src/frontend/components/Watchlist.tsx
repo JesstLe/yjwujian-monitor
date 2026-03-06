@@ -497,7 +497,7 @@ export default function Watchlist() {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-2 text-sm text-gray-500 cursor-pointer">
+                      <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
                         <div className="relative">
                           <input
                             type="checkbox"
