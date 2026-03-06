@@ -14,21 +14,25 @@
 
 ## 界面预览
 
-### 首页 / 市场参考
+### 仪表盘
 
-![藏宝阁首页参考](docs/research/cbg-homepage.png)
+![仪表盘](screenshots-final/dashboard-real-desktop.png)
 
-### 英雄皮肤页
+### 搜索页
 
-![英雄皮肤页](docs/research/yjwujian-hero-skin.png)
+![搜索页](screenshots-final/search-real-desktop.png)
 
-### 武器皮肤页
+### 监控列表
 
-![武器皮肤页](docs/research/yjwujian-weapon-skin.png)
+![监控列表](screenshots-final/watchlist-real-desktop.png)
 
-### 物品详情页
+### 设置页
 
-![物品详情页](docs/research/yjwujian-item-detail.png)
+![设置页](screenshots-final/settings-real-desktop.png)
+
+### 3D 对比页
+
+![3D 对比页](screenshots-final/compare-3d-real-desktop.png)
 
 ## 页面与模块
 
