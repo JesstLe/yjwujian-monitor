@@ -3,6 +3,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import cookieParser from "cookie-parser";
 import { initializeDatabase } from "./db/index";
 import { startMonitor } from "./services/monitor";
 import itemsRouter from "./routes/items";
@@ -12,6 +13,7 @@ import alertsRouter from "./routes/alerts";
 import settingsRouter from "./routes/settings";
 import monitorRouter from "./routes/monitor";
 import compareRouter from "./routes/compare";
+import authRouter from "./routes/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +26,7 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+app.use(cookieParser());
 
 app.use("/api/items", itemsRouter);
 app.use("/api/watchlist", watchlistRouter);
@@ -32,6 +35,7 @@ app.use("/api/alerts", alertsRouter);
 app.use("/api/settings", settingsRouter);
 app.use("/api/monitor", monitorRouter);
 app.use("/api/compare", compareRouter);
+app.use("/api/auth", authRouter);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });
