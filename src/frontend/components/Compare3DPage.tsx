@@ -95,6 +95,36 @@ const Icons = {
       />
     </svg>
   ),
+  up: (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M5 15l7-7 7 7"
+      />
+    </svg>
+  ),
+  down: (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M19 9l-7 7-7-7"
+      />
+    </svg>
+  ),
   cube: (
     <svg
       className="w-5 h-5"
@@ -330,6 +360,7 @@ export default function Compare3DPage() {
   const [scale, setScale] = useState(1);
   const [interactionMode, setInteractionMode] = useState<"rotate" | "pan">("rotate");
   const [resetCounter, setResetCounter] = useState(0);
+  const [globalPan, setGlobalPan] = useState({ x: 0, y: 0 });
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // 预览弹窗状态
@@ -385,7 +416,22 @@ export default function Compare3DPage() {
   const handleReset = useCallback(() => {
     setAngle(0);
     setScale(1);
+    setGlobalPan({ x: 0, y: 0 });
     setResetCounter(prev => prev + 1);
+  }, []);
+
+  // 全局平移
+  const handlePan = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
+    const step = 20; // 每次平移 20 像素
+    setGlobalPan(prev => {
+      switch (direction) {
+        case 'up': return { ...prev, y: prev.y - step };
+        case 'down': return { ...prev, y: prev.y + step };
+        case 'left': return { ...prev, x: prev.x - step };
+        case 'right': return { ...prev, x: prev.x + step };
+        default: return prev;
+      }
+    });
   }, []);
 
   // 切换自动旋转
@@ -593,6 +639,42 @@ export default function Compare3DPage() {
 
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
+            {/* 平移方向按钮 - 十字形布局 */}
+            <div className="flex flex-col items-center gap-0.5">
+              <button
+                onClick={() => handlePan('up')}
+                className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                title="上移"
+              >
+                {Icons.up}
+              </button>
+              <div className="flex gap-1">
+                <button
+                  onClick={() => handlePan('left')}
+                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="左移"
+                >
+                  {Icons.left}
+                </button>
+                <button
+                  onClick={() => handlePan('down')}
+                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="下移"
+                >
+                  {Icons.down}
+                </button>
+                <button
+                  onClick={() => handlePan('right')}
+                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
+                  title="右移"
+                >
+                  {Icons.right}
+                </button>
+              </div>
+            </div>
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
             {/* 自动旋转 */}
             <button
               onClick={toggleAutoRotate}
@@ -627,6 +709,7 @@ export default function Compare3DPage() {
                   scale={scale}
                   interactionMode={interactionMode}
                   resetCounter={resetCounter}
+                  globalPan={globalPan}
                 />
                 {/* 截图保存按钮 */}
                 {item.captureUrls && item.captureUrls.length > 0 && (

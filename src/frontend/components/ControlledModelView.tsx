@@ -12,6 +12,7 @@ interface ControlledModelViewProps {
   resetCounter?: number;
   onAngleChange?: (angle: number) => void;
   isDraggable?: boolean;
+  globalPan?: { x: number; y: number };
 }
 
 // 将外部图片URL转换为代理URL
@@ -52,6 +53,7 @@ export default function ControlledModelView({
   resetCounter = 0,
   onAngleChange,
   isDraggable = true,
+  globalPan = { x: 0, y: 0 },
 }: ControlledModelViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -65,6 +67,12 @@ export default function ControlledModelView({
     setLocalPan({ x: 0, y: 0 });
     setLocalScale(1);
   }, [resetCounter]);
+
+  // 合并全局平移和本地平移
+  const effectivePan = {
+    x: globalPan.x + localPan.x,
+    y: globalPan.y + localPan.y,
+  };
 
   const effectiveScale = scale * localScale;
 
@@ -192,7 +200,7 @@ export default function ControlledModelView({
               crossOrigin="anonymous"
               style={{
                 pointerEvents: idx === frameIndex ? "auto" : "none",
-                transform: `translate(${localPan.x}px, ${localPan.y}px) scale(${effectiveScale})`,
+                transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveScale})`,
                 transition: isDragging ? 'none' : 'transform 0.1s ease-out',
               }}
             />
