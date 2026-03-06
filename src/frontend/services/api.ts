@@ -6,6 +6,8 @@ import type {
   Alert,
   PriceHistoryPoint,
   CompareItem,
+  User,
+  AuthResponse,
 } from "@shared/types";
 
 const API_BASE = "/api";
@@ -56,6 +58,7 @@ export const api = {
       minPrice?: number;
       maxPrice?: number;
       variationUnlockLevel?: number;
+      seller?: string;
       starLevel?: number;
       slot1Min?: number;
       slot1Max?: number;
@@ -113,14 +116,20 @@ export const api = {
       if (page) queryParams.append("page", String(page));
       if (sort) queryParams.append("sort", sort);
       if (variationUnlockLevel !== undefined) {
-        queryParams.append("variationUnlockLevel", String(variationUnlockLevel));
+        queryParams.append(
+          "variationUnlockLevel",
+          String(variationUnlockLevel),
+        );
       }
-      if (slotIndex !== undefined) queryParams.append("slotIndex", String(slotIndex));
+      if (slotIndex !== undefined)
+        queryParams.append("slotIndex", String(slotIndex));
       if (targetValue !== undefined) {
         queryParams.append("targetValue", String(targetValue));
       }
-      if (minValue !== undefined) queryParams.append("minValue", String(minValue));
-      if (maxValue !== undefined) queryParams.append("maxValue", String(maxValue));
+      if (minValue !== undefined)
+        queryParams.append("minValue", String(minValue));
+      if (maxValue !== undefined)
+        queryParams.append("maxValue", String(maxValue));
       return fetchApiWithMeta<Item[]>(
         `/items/type/${id}/listings?${queryParams}`,
       );
@@ -273,6 +282,112 @@ export const api = {
       fetchApi<void>(`/compare/${id}`, {
         method: "DELETE",
       }),
+  },
+
+  // Auth API - 认证功能
+  auth: {
+    register: async (
+      email: string,
+      password: string,
+      username?: string,
+    ): Promise<AuthResponse> => {
+      const response = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, username }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    login: async (email: string, password: string): Promise<AuthResponse> => {
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    logout: async (): Promise<{ success: boolean }> => {
+      const response = await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    verifyEmail: async (token: string): Promise<AuthResponse> => {
+      const response = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    verifyDevice: async (
+      email: string,
+      code: string,
+    ): Promise<AuthResponse> => {
+      const response = await fetch("/api/auth/verify-device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, code }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    forgotPassword: async (
+      email: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    resetPassword: async (
+      token: string,
+      password: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, password }),
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    getMe: async (): Promise<{
+      success: boolean;
+      user?: User;
+      error?: string;
+    }> => {
+      const response = await fetch("/api/auth/me", {
+        credentials: "include",
+      });
+      return response.json();
+    },
+
+    resendVerification: async (
+      email: string,
+    ): Promise<{ success: boolean; error?: string }> => {
+      const response = await fetch("/api/auth/resend-verification", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+        credentials: "include",
+      });
+      return response.json();
+    },
   },
 };
 
