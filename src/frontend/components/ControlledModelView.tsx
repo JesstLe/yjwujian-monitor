@@ -50,7 +50,8 @@ export default function ControlledModelView({
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [lastX, setLastX] = useState(0);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  // 记录每张图片是否已加载完毕
+  const [loadedFrames, setLoadedFrames] = useState<Record<number, boolean>>({});
 
   // 将所有URL转换为代理URL
   const proxiedCaptureUrls = useMemo(
@@ -64,27 +65,15 @@ export default function ControlledModelView({
 
   const hasCapture = proxiedCaptureUrls.length > 0;
   const frameIndex = hasCapture ? angleToFrameIndex(angle) : 0;
-  const displayUrl = hasCapture
-    ? proxiedCaptureUrls[frameIndex]
-    : proxiedFallbackUrl;
 
-  // Preload all frames
+  // 重置加载状态当URL列表改变时
   useEffect(() => {
-    if (hasCapture) {
-      proxiedCaptureUrls.forEach((url) => {
-        const img = new Image();
-        img.src = url;
-      });
-    }
-  }, [proxiedCaptureUrls, hasCapture]);
-
-  // Reset image loaded state when frame changes
-  useEffect(() => {
-    setImageLoaded(false);
-  }, [frameIndex]);
+    setLoadedFrames({});
+  }, [proxiedCaptureUrls]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // 保证只能作用于主容器，防止影响子按钮（比如截图按钮）
       if (!isDraggable || !hasCapture) return;
       e.preventDefault();
       setIsDragging(true);
@@ -116,7 +105,7 @@ export default function ControlledModelView({
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }, []);
 
-  if (!displayUrl) {
+  if (!hasCapture && !proxiedFallbackUrl) {
     return (
       <div className="w-full aspect-square bg-slate-800/50 flex items-center justify-center rounded-xl">
         <span className="text-4xl opacity-20">🎮</span>
@@ -127,33 +116,58 @@ export default function ControlledModelView({
   return (
     <div
       ref={containerRef}
-      className={`select-none ${
-        isDraggable && hasCapture ? "cursor-grab" : ""
-      } ${isDragging ? "cursor-grabbing" : ""}`}
+      className={`select-none ${isDraggable && hasCapture ? "cursor-grab" : ""
+        } ${isDragging ? "cursor-grabbing" : ""}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
     >
       {/* 3D 视图区域 */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-xl">
-        <img
-          src={displayUrl}
-          alt={name}
-          className={`w-full h-full object-cover transition-opacity duration-150 ${
-            imageLoaded ? "opacity-100" : "opacity-0"
-          }`}
-          onLoad={() => setImageLoaded(true)}
-          loading="lazy"
-          draggable={false}
-          crossOrigin="anonymous"
-        />
-        {!imageLoaded && (
-          <div className="absolute inset-0 bg-slate-200 animate-pulse" />
+      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-xl group/view">
+        {/* 如果没有3D图片，只显示回退图片 */}
+        {!hasCapture && proxiedFallbackUrl && (
+          <img
+            src={proxiedFallbackUrl}
+            alt={name}
+            className={`w-full h-full object-cover transition-opacity duration-150 ${loadedFrames[0] ? "opacity-100" : "opacity-0"
+              }`}
+            onLoad={() => setLoadedFrames({ 0: true })}
+            loading="lazy"
+            draggable={false}
+            crossOrigin="anonymous"
+          />
         )}
+
+        {/* 堆叠渲染所有32帧（或实际帧数），只显示当前帧可消除闪烁 */}
+        {hasCapture &&
+          proxiedCaptureUrls.map((url, idx) => (
+            <img
+              key={idx}
+              src={url}
+              alt={`${name} - 帧 ${idx}`}
+              className={`absolute inset-0 w-full h-full object-cover ${idx === frameIndex ? "visible opacity-100" : "invisible opacity-0"
+                }`}
+              onLoad={() => setLoadedFrames((prev) => ({ ...prev, [idx]: true }))}
+              loading="lazy"
+              draggable={false}
+              crossOrigin="anonymous"
+              // 只在可见时赋予 pointer-events-auto，其他完全忽略，防止影响拖拽
+              style={{ pointerEvents: idx === frameIndex ? "auto" : "none" }}
+            />
+          ))}
+
+        {/* 加载中的骨架屏（如果当前应该显示的帧还没有加载完） */}
+        {hasCapture && !loadedFrames[frameIndex] && (
+          <div className="absolute inset-0 bg-slate-200/80 animate-pulse pointer-events-none" />
+        )}
+        {!hasCapture && proxiedFallbackUrl && !loadedFrames[0] && (
+          <div className="absolute inset-0 bg-slate-200/80 animate-pulse pointer-events-none" />
+        )}
+
         {/* 拖拽提示 */}
         {isDraggable && hasCapture && !isDragging && (
-          <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/50 text-xs text-white backdrop-blur-sm">
+          <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/50 text-xs text-white backdrop-blur-sm opacity-0 group-hover/view:opacity-100 transition-opacity">
             <svg
               className="w-3.5 h-3.5"
               fill="none"
@@ -173,7 +187,7 @@ export default function ControlledModelView({
       </div>
 
       {/* 信息区域 */}
-      <div className="p-3 bg-white rounded-b-xl border-t border-gray-100">
+      <div className="p-3 bg-white rounded-b-xl border-t border-gray-100 pointer-events-none">
         <h4
           className="text-sm font-semibold text-gray-900 truncate"
           title={name}

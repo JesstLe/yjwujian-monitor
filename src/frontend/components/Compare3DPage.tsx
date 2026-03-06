@@ -5,6 +5,25 @@ import type { CompareItem } from "@shared/types";
 import ControlledModelView from "./ControlledModelView";
 import { saveAs } from "file-saver";
 
+// 将外部图片URL转换为代理URL（与 ControlledModelView 保持一致）
+function getProxyImageUrl(url: string): string {
+  const proxyDomains = [
+    "cbg-capture.res.netease.com",
+    "cbg-yaots.res.netease.com",
+    "img.cbgtf.163.com",
+    "game.gtimg.cn",
+  ];
+  try {
+    const urlObj = new URL(url);
+    if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
+      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // 忽略
+  }
+  return url;
+}
+
 const Icons = {
   back: (
     <svg
@@ -106,7 +125,7 @@ const Icons = {
       />
     </svg>
   ),
-  download: (
+  camera: (
     <svg
       className="w-4 h-4"
       fill="none"
@@ -117,11 +136,170 @@ const Icons = {
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeWidth={2}
-        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l4-4m5 3V8m0 6a3 3 0 003 3h10a3 3 0 003-3V8m0-6V4m0 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"
+        d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+      />
+    </svg>
+  ),
+  close: (
+    <svg
+      className="w-6 h-6"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M6 18L18 6M6 6l12 12"
+      />
+    </svg>
+  ),
+  download: (
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+      />
+    </svg>
+  ),
+  downloadSmall: (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
       />
     </svg>
   ),
 };
+
+/**
+ * 全屏图片预览弹窗
+ * 显示原始高清大图，支持下载保存
+ */
+function ImagePreviewModal({
+  imageUrl,
+  itemName,
+  angle,
+  onClose,
+}: {
+  imageUrl: string;
+  itemName: string;
+  angle: number;
+  onClose: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // 通过代理下载原始图并保存
+  const handleSave = async () => {
+    setSaving(true);
+    const fileName = `${itemName.replace(/[^\w\u4e00-\u9fa5]/g, "_") || "item"}_${Math.round(angle)}deg.png`;
+    try {
+      const proxyUrl = getProxyImageUrl(imageUrl);
+      const response = await fetch(proxyUrl);
+      const blob = await response.blob();
+      saveAs(blob, fileName);
+    } catch (error) {
+      console.error("保存失败:", error);
+      // 降级：在新标签页打开代理 URL
+      window.open(getProxyImageUrl(imageUrl), "_blank");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // ESC 关闭
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
+
+  // 预览使用代理 URL
+  const previewUrl = getProxyImageUrl(imageUrl);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      {/* 弹窗内容 */}
+      <div
+        className="relative max-w-[90vw] max-h-[90vh] flex flex-col"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* 顶部工具栏 */}
+        <div className="flex items-center justify-between bg-gray-900/90 backdrop-blur-sm rounded-t-2xl px-5 py-3">
+          <div className="flex items-center gap-3">
+            <span className="text-white font-semibold text-sm truncate max-w-[300px]">
+              {itemName}
+            </span>
+            <span className="text-gray-400 text-xs bg-gray-800 px-2 py-0.5 rounded-full">
+              {Math.round(angle)}°
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 disabled:bg-blue-400 text-white text-sm font-medium rounded-lg transition-colors"
+            >
+              {Icons.download}
+              {saving ? "保存中..." : "保存图片"}
+            </button>
+            <button
+              onClick={onClose}
+              className="p-2 text-gray-400 hover:text-white transition-colors"
+            >
+              {Icons.close}
+            </button>
+          </div>
+        </div>
+
+        {/* 图片区域 —— 显示原始大尺寸图片 */}
+        <div className="relative bg-gray-900 rounded-b-2xl overflow-auto max-h-[calc(90vh-52px)]">
+          {!imageLoaded && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-spin w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full" />
+            </div>
+          )}
+          <img
+            src={previewUrl}
+            alt={`${itemName} - ${Math.round(angle)}°`}
+            className={`block max-w-none transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"
+              }`}
+            style={{ minWidth: "600px", minHeight: "600px" }}
+            onLoad={() => setImageLoaded(true)}
+            draggable={false}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function Compare3DPage() {
   const navigate = useNavigate();
@@ -131,6 +309,8 @@ export default function Compare3DPage() {
   const [isAutoRotating, setIsAutoRotating] = useState(false);
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  // 预览弹窗状态
+  const [previewItem, setPreviewItem] = useState<CompareItem | null>(null);
 
   // 加载对比列表
   useEffect(() => {
@@ -215,31 +395,28 @@ export default function Compare3DPage() {
     setIsAutoRotating((prev) => !prev);
   }, []);
 
-  // 导出当前角度的单张图片
-  const exportCurrentImage = useCallback(
-    async (item: CompareItem) => {
-      if (!item.captureUrls || item.captureUrls.length === 0) {
-        alert("该物品没有3D图片可导出");
-        return;
-      }
-
-      // 获取当前角度对应的图片URL
-      const frameIndex = Math.floor((((angle % 360) + 360) / 360) * 32) % 32;
-      const currentImageUrl = item.captureUrls[frameIndex];
-      const fileName = `${item.name.replace(/[^\w\u4e00-\u9fa5]/g, "_") || "item"}_${Math.round(angle)}deg.png`;
-
-      try {
-        // 直接下载图片
-        const response = await fetch(currentImageUrl);
-        const blob = await response.blob();
-        saveAs(blob, fileName);
-      } catch (error) {
-        console.error("Export failed:", error);
-        // 如果fetch失败，尝试直接打开链接
-        window.open(currentImageUrl, "_blank");
-      }
+  // 获取当前角度对应的原图 URL
+  const getFrameUrl = useCallback(
+    (item: CompareItem) => {
+      if (!item.captureUrls || item.captureUrls.length === 0) return null;
+      const frameIndex =
+        Math.floor((((angle % 360) + 360) / 360) * 32) % 32;
+      return item.captureUrls[frameIndex];
     },
     [angle],
+  );
+
+  // 打开预览弹窗（暂停自动旋转）
+  const handleOpenPreview = useCallback(
+    (item: CompareItem) => {
+      if (!item.captureUrls || item.captureUrls.length === 0) {
+        alert("该物品没有3D图片");
+        return;
+      }
+      setIsAutoRotating(false);
+      setPreviewItem(item);
+    },
+    [],
   );
 
   // 物品少于2个时显示提示
@@ -276,6 +453,16 @@ export default function Compare3DPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+      {/* 全屏预览弹窗 */}
+      {previewItem && (
+        <ImagePreviewModal
+          imageUrl={getFrameUrl(previewItem) || ""}
+          itemName={previewItem.name}
+          angle={angle}
+          onClose={() => setPreviewItem(null)}
+        />
+      )}
+
       {/* 头部 */}
       <header className="bg-white/80 backdrop-blur-lg border-b border-gray-200 sticky top-0 z-10">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
@@ -303,7 +490,7 @@ export default function Compare3DPage() {
               onClick={() => stepAngle(-11.25)}
               disabled={isAutoRotating}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="旋转 -15°"
+              title="旋转 -11.25°"
             >
               {Icons.left}
             </button>
@@ -329,7 +516,7 @@ export default function Compare3DPage() {
               onClick={() => stepAngle(11.25)}
               disabled={isAutoRotating}
               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="旋转 +15°"
+              title="旋转 +11.25°"
             >
               {Icons.right}
             </button>
@@ -354,11 +541,10 @@ export default function Compare3DPage() {
             {/* 自动旋转 */}
             <button
               onClick={toggleAutoRotate}
-              className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium ${
-                isAutoRotating
-                  ? "bg-blue-500 text-white"
-                  : "bg-gray-100 hover:bg-gray-200 text-gray-600"
-              }`}
+              className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium ${isAutoRotating
+                ? "bg-blue-500 text-white"
+                : "bg-gray-100 hover:bg-gray-200 text-gray-600"
+                }`}
             >
               {isAutoRotating ? Icons.pause : Icons.play}
               {isAutoRotating ? "暂停" : "自动"}
@@ -386,15 +572,18 @@ export default function Compare3DPage() {
                   angle={angle}
                   isDraggable={false}
                 />
-                {/* 导出按钮 */}
+                {/* 截图保存按钮 */}
                 {item.captureUrls && item.captureUrls.length > 0 && (
                   <button
-                    onClick={() => exportCurrentImage(item)}
-                    className="absolute bottom-16 right-2 p-2 bg-white/90 hover:bg-white rounded-lg shadow-md opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium text-gray-600 hover:text-blue-600 flex items-center gap-1"
-                    title="保存当前角度图片"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      handleOpenPreview(item);
+                    }}
+                    className="absolute bottom-16 right-2 z-50 p-2.5 bg-white/90 hover:bg-blue-500 hover:text-white rounded-xl shadow-lg opacity-0 group-hover:opacity-100 transition-all text-xs font-medium text-gray-600 flex items-center gap-1.5 border border-gray-200 hover:border-blue-500 cursor-pointer"
+                    title="查看大图并保存"
                   >
-                    {Icons.download}
-                    <span className="hidden sm:inline">保存</span>
+                    {Icons.camera}
+                    <span className="hidden sm:inline">截图</span>
                   </button>
                 )}
               </div>
@@ -405,7 +594,9 @@ export default function Compare3DPage() {
         {/* 提示 */}
         <div className="text-center mt-4">
           <p className="text-sm text-gray-400">
-            {isAutoRotating ? "自动旋转中..." : "← 拖拽此区域旋转所有模型 →"}
+            {isAutoRotating
+              ? "自动旋转中..."
+              : "← 拖拽此区域旋转所有模型 · 悬停物品点击📷截图 →"}
           </p>
         </div>
       </div>

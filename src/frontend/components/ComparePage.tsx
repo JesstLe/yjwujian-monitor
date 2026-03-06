@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
-import html2canvas from "html2canvas";
+import { saveAs } from "file-saver";
+import JSZip from "jszip";
 
 // Icons
 const SearchIcon = () => (
@@ -138,11 +139,10 @@ const CompareCard = ({
         )}
         {/* 稀有度标签 */}
         <div
-          className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-md backdrop-blur-sm ${
-            item.rarity === "red"
-              ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
-              : "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
-          }`}
+          className={`absolute top-3 left-3 px-2.5 py-1 rounded-lg text-xs font-semibold shadow-md backdrop-blur-sm ${item.rarity === "red"
+            ? "bg-gradient-to-r from-red-500 to-red-600 text-white"
+            : "bg-gradient-to-r from-amber-500 to-amber-600 text-white"
+            }`}
         >
           {item.rarity === "red" ? "红皮" : "金皮"}
         </div>
@@ -277,9 +277,8 @@ const CompareTable = ({ items }: { items: CompareItem[] }) => {
             {rows.map((row, rowIdx) => (
               <tr
                 key={row.key}
-                className={`transition-colors ${
-                  rowIdx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
-                } hover:bg-blue-50/60`}
+                className={`transition-colors ${rowIdx % 2 === 0 ? "bg-white" : "bg-slate-50/70"
+                  } hover:bg-blue-50/60`}
               >
                 <td className="p-4 text-gray-500 font-medium border-r border-gray-100">
                   {row.label}
@@ -311,34 +310,66 @@ export default function ComparePage() {
   const [compareList, setCompareList] = useState<CompareItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CompareItem | null>(null);
   const compareCardRef = useRef<HTMLDivElement>(null);
+  const [exporting, setExporting] = useState(false);
 
-  // 导出对比卡片为图片
+  // 导出全部选中物品的 3D 帧图片为 ZIP
   const exportCompareCard = useCallback(async () => {
-    if (!compareCardRef.current) return;
+    // 选出所有包含 captureUrls 的物品
+    const itemsWithCapture = compareList.filter(
+      (item) => item.captureUrls && item.captureUrls.length > 0,
+    );
 
-    try {
-      const canvas = await html2canvas(compareCardRef.current, {
-        backgroundColor: "#ffffff",
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        logging: false,
-      });
-      canvas.toBlob((blob) => {
-        if (blob) {
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `compare_${Date.now()}.png`;
-          a.click();
-          URL.revokeObjectURL(url);
-        }
-      });
-    } catch (error) {
-      console.error("导出失败:", error);
-      alert("导出失败，请重试");
+    if (itemsWithCapture.length === 0) {
+      alert("对比列表中没有包含 3D 模型的物品");
+      return;
     }
-  }, []);
+
+    setExporting(true);
+    try {
+      const zip = new JSZip();
+
+      for (const item of itemsWithCapture) {
+        // 如果有多个物品，建立子文件夹
+        const folderName =
+          itemsWithCapture.length > 1
+            ? `${item.name.replace(/[^\w\u4e00-\u9fa5]/g, "_")}_${item.serialNum}`
+            : "";
+        const folder = folderName ? zip.folder(folderName) : zip;
+
+        if (!folder) continue;
+
+        // 下载 32 帧
+        const downloadPromises = item.captureUrls!.map(async (url, index) => {
+          try {
+            const proxyUrl = getProxyImageUrl(url) || url;
+            const res = await fetch(proxyUrl);
+            const blob = await res.blob();
+            folder.file(`${index}.png`, blob);
+          } catch (err) {
+            console.error(
+              `Failed to download frame ${index} for ${item.name}`,
+              err,
+            );
+          }
+        });
+
+        await Promise.all(downloadPromises);
+      }
+
+      // 生成 ZIP
+      const content = await zip.generateAsync({ type: "blob" });
+      const fileName =
+        itemsWithCapture.length === 1
+          ? `${itemsWithCapture[0].name.replace(/[^\w\u4e00-\u9fa5]/g, "_")}_3dframes.zip`
+          : `compare_3dframes_selected.zip`;
+      saveAs(content, fileName);
+    } catch (error) {
+      console.error("导出 ZIP 失败:", error);
+      alert("导出图片打包失败，请重试");
+    } finally {
+      setExporting(false);
+    }
+  }, [compareList]);
 
   // 加载物品类型列表
   useEffect(() => {
@@ -632,22 +663,47 @@ export default function ComparePage() {
             {compareList.length >= 1 && (
               <button
                 onClick={exportCompareCard}
-                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-xl transition-all shadow-md hover:shadow-lg"
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 disabled:from-gray-400 disabled:to-gray-500 text-white text-sm font-medium rounded-xl transition-all shadow-md hover:shadow-lg disabled:shadow-none disabled:cursor-not-allowed"
               >
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-                  />
-                </svg>
-                <span>导出图片</span>
+                {!exporting && (
+                  <svg
+                    className="w-4 h-4"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                    />
+                  </svg>
+                )}
+                {exporting ? (
+                  <svg
+                    className="animate-spin -ml-1 mr-1 h-4 w-4 text-white"
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                  >
+                    <circle
+                      className="opacity-25"
+                      cx="12"
+                      cy="12"
+                      r="10"
+                      stroke="currentColor"
+                      strokeWidth="4"
+                    ></circle>
+                    <path
+                      className="opacity-75"
+                      fill="currentColor"
+                      d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                    ></path>
+                  </svg>
+                ) : null}
+                <span>{exporting ? "打包下载中..." : "导出图片"}</span>
               </button>
             )}
           </div>
