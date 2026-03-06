@@ -12,22 +12,22 @@
 -- ============================================
 -- Note: SQLite doesn't support IF NOT EXISTS for ALTER TABLE ADD COLUMN
 -- If the column already exists, this will fail (safe to ignore)
-ALTER TABLE groups ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE groups ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
 
 -- ============================================
 -- Add user_id column to watchlist table
 -- ============================================
-ALTER TABLE watchlist ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE watchlist ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
 
 -- ============================================
 -- Add user_id column to alerts table
 -- ============================================
-ALTER TABLE alerts ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE alerts ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
 
 -- ============================================
 -- Add user_id column to compare_list table
 -- ============================================
-ALTER TABLE compare_list ADD COLUMN user_id TEXT REFERENCES users(id);
+ALTER TABLE compare_list ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE SET NULL;
 
 -- ============================================
 -- Create user_settings table

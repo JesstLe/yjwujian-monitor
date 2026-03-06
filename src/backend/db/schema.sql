@@ -30,13 +30,8 @@ CREATE TABLE IF NOT EXISTS groups (
   color TEXT DEFAULT '#3b82f6',
   alert_enabled INTEGER DEFAULT 1,
   sort_order INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
-  value TEXT,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 
 -- Default group
@@ -51,6 +46,7 @@ CREATE TABLE IF NOT EXISTS watchlist (
   alert_enabled INTEGER DEFAULT 1,
   notes TEXT,
   added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
   FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE SET DEFAULT
 );
@@ -75,6 +71,7 @@ CREATE TABLE IF NOT EXISTS alerts (
   triggered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   is_read INTEGER DEFAULT 0,
   is_resolved INTEGER DEFAULT 0,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL,
   FOREIGN KEY (watchlist_id) REFERENCES watchlist(id) ON DELETE CASCADE,
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 );
@@ -116,7 +113,8 @@ CREATE TABLE IF NOT EXISTS compare_list (
   parent_type_id TEXT NOT NULL,
   serial_num TEXT,
   item_data TEXT NOT NULL,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  user_id TEXT REFERENCES users(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS idx_compare_list_item ON compare_list(item_id);
