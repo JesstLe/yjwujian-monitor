@@ -381,6 +381,7 @@ class CBGClient {
       keyword?: string;
       priceMin?: number;
       priceMax?: number;
+      variationUnlockLevel?: number;
     },
   ): Promise<{ items: Item[]; total: number; pageCount: number }> {
     await this.waitForRateLimit();
@@ -400,6 +401,9 @@ class CBGClient {
     if (filters?.keyword) params.keyword = filters.keyword;
     if (filters?.priceMin) params.price_min = filters.priceMin * 100; // Convert to cents
     if (filters?.priceMax) params.price_max = filters.priceMax * 100;
+    if (filters?.variationUnlockLevel) {
+      params.variation_unlock_level = filters.variationUnlockLevel;
+    }
 
     try {
       // Try aggregate API first
@@ -414,7 +418,7 @@ class CBGClient {
         response.data.status !== 200
       ) {
         // Try legacy API as fallback
-        return this.getItemsByCategoryLegacy(kindId, page, count);
+        return this.getItemsByCategoryLegacy(kindId, page, count, filters);
       }
 
       const items = response.data.equip_type_list.map((equipType) =>
@@ -428,7 +432,7 @@ class CBGClient {
       };
     } catch {
       // Try legacy API on error
-      return this.getItemsByCategoryLegacy(kindId, page, count);
+      return this.getItemsByCategoryLegacy(kindId, page, count, filters);
     }
   }
 
@@ -439,6 +443,12 @@ class CBGClient {
     kindId: number,
     page: number,
     count: number,
+    filters?: {
+      keyword?: string;
+      priceMin?: number;
+      priceMax?: number;
+      variationUnlockLevel?: number;
+    },
   ): Promise<{ items: Item[]; total: number; pageCount: number }> {
     await this.waitForRateLimit();
 
@@ -452,6 +462,10 @@ class CBGClient {
       exter: "direct",
       page_session_id: this.generateSessionId(),
       traffic_trace: JSON.stringify({ field_id: "", content_id: "" }),
+      keyword: filters?.keyword,
+      price_min: filters?.priceMin ? filters.priceMin * 100 : undefined,
+      price_max: filters?.priceMax ? filters.priceMax * 100 : undefined,
+      variation_unlock_level: filters?.variationUnlockLevel,
     };
 
     const response = await this.client.get<CBGListResponse>(

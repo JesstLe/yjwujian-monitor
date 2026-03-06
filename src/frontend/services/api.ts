@@ -5,6 +5,7 @@ import type {
   WatchlistGroup,
   Alert,
   PriceHistoryPoint,
+  CompareItem,
 } from "@shared/types";
 
 const API_BASE = "/api";
@@ -19,11 +20,11 @@ async function fetchApi<T>(path: string, options?: RequestInit): Promise<T> {
 
   const data = await response.json();
 
-  if (!data.success) {
+  if (!data.success && data.error) {
     throw new Error(data.error || "Request failed");
   }
 
-  return data.data;
+  return data.data ?? data;
 }
 
 async function fetchApiWithMeta<T>(
@@ -39,7 +40,7 @@ async function fetchApiWithMeta<T>(
 
   const data = await response.json();
 
-  if (!data.success) {
+  if (!data.success && data.error) {
     throw new Error(data.error || "Request failed");
   }
 
@@ -54,6 +55,7 @@ export const api = {
       rarity?: string;
       minPrice?: number;
       maxPrice?: number;
+      variationUnlockLevel?: number;
       starLevel?: number;
       slot1Min?: number;
       slot1Max?: number;
@@ -178,7 +180,7 @@ export const api = {
         method: "PUT",
         body: JSON.stringify(data),
       }),
-    testNotification: (data: { type: string; config: any }) =>
+    testNotification: (data: { type: string; config: unknown }) =>
       fetchApi("/settings/test", {
         method: "POST",
         body: JSON.stringify(data),
@@ -211,6 +213,39 @@ export const api = {
           method: "POST",
         },
       ),
+  },
+
+  // Compare API - 对比功能
+  compare: {
+    // 获取所有物品类型列表
+    getTypes: () => fetchApi<Item[]>("/compare/types"),
+
+    // 按父层+编号搜索子物品
+    searchBySerialNum: (
+      parentTypeId: string,
+      serialNum: string,
+      maxPages?: number,
+    ) => {
+      const params = new URLSearchParams();
+      params.append("parentTypeId", parentTypeId);
+      params.append("serialNum", serialNum);
+      if (maxPages) params.append("maxPages", String(maxPages));
+      return fetchApi<Item | null>(`/compare/search?${params}`);
+    },
+
+    // 对比列表 CRUD
+    getAll: () => fetchApi<CompareItem[]>("/compare"),
+
+    add: (item: Omit<CompareItem, "id">) =>
+      fetchApi<CompareItem>("/compare", {
+        method: "POST",
+        body: JSON.stringify(item),
+      }),
+
+    remove: (id: string) =>
+      fetchApi<void>(`/compare/${id}`, {
+        method: "DELETE",
+      }),
   },
 };
 

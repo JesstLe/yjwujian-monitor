@@ -149,33 +149,33 @@ export default function Settings() {
   if (loading) {
     return (
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="h-8 w-32 rounded-lg bg-slate-800/30 animate-pulse" />
-        <div className="h-96 rounded-xl bg-slate-800/30 animate-pulse" />
+        <div className="h-8 w-32 rounded-lg bg-gray-200 animate-pulse" />
+        <div className="h-96 rounded-xl bg-gray-200 animate-pulse" />
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      <h2 className="text-xl font-bold text-slate-100">设置</h2>
+      <h2 className="text-xl font-bold text-gray-900">设置</h2>
 
-      <div className="rounded-xl border border-slate-800/50 bg-slate-900/30 overflow-hidden divide-y divide-slate-800/50">
-        <div className="p-5">
-          <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
+        <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             <span className="relative flex h-2 w-2">
-              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? 'bg-emerald-400' : 'bg-slate-400'}`} />
-              <span className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? 'bg-emerald-500' : 'bg-slate-500'}`} />
+              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? 'bg-emerald-400' : 'bg-gray-400'}`} />
+              <span className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? 'bg-emerald-500' : 'bg-gray-400'}`} />
             </span>
             监控状态
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
+            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-3">
-                <span className={`text-sm font-medium ${monitorStatus?.running ? 'text-emerald-400' : 'text-slate-400'}`}>
+                <span className={`text-sm font-medium ${monitorStatus?.running ? 'text-emerald-600' : 'text-gray-500'}`}>
                   {monitorStatus?.running ? '运行中' : '已停止'}
                 </span>
               </div>
-              <div className="flex items-center gap-2 text-sm text-slate-500">
+              <div className="flex items-center gap-2 text-sm text-gray-500">
                 {Icons.clock}
                 <span>检查间隔: {monitorStatus?.intervalMinutes || 5} 分钟</span>
               </div>
@@ -185,30 +185,30 @@ export default function Settings() {
               <button
                 onClick={() => handleMonitorAction('start')}
                 disabled={actionLoading === 'start' || monitorStatus?.running}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg border border-emerald-500/30 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-emerald-200 transition-colors"
               >
                 {actionLoading === 'start' ? (
-                  <span className="w-4 h-4 border-2 border-emerald-400/30 border-t-emerald-400 rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
                 ) : Icons.play}
                 启动监控
               </button>
               <button
                 onClick={() => handleMonitorAction('stop')}
                 disabled={actionLoading === 'stop' || !monitorStatus?.running}
-                className="flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg border border-red-500/30 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-red-200 transition-colors"
               >
                 {actionLoading === 'stop' ? (
-                  <span className="w-4 h-4 border-2 border-red-400/30 border-t-red-400 rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
                 ) : Icons.stop}
                 停止监控
               </button>
               <button
                 onClick={() => handleMonitorAction('checkNow')}
                 disabled={actionLoading === 'checkNow'}
-                className="flex items-center gap-2 px-4 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-lg border border-cyan-500/30 transition-colors"
+                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-blue-200 transition-colors"
               >
                 {actionLoading === 'checkNow' ? (
-                  <span className="w-4 h-4 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                  <span className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                 ) : Icons.bolt}
                 立即检查
               </button>
@@ -216,11 +216,11 @@ export default function Settings() {
           </div>
         </div>
 
-        <div className="p-5">
-          <h3 className="font-semibold text-slate-200 mb-4">监控设置</h3>
+        <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
+          <h3 className="font-semibold text-gray-900 mb-4">监控设置</h3>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm text-slate-400 mb-2">
+              <label className="block text-sm text-gray-500 mb-2">
                 检查间隔 (分钟)
               </label>
               <input
@@ -231,25 +231,25 @@ export default function Settings() {
                 onChange={(e) =>
                   setSettings({ ...settings, check_interval_minutes: parseInt(e.target.value) })
                 }
-                className="w-32 px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all"
+                className="w-32 px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
               />
             </div>
           </div>
         </div>
 
-        <div className="p-5">
-          <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+        <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             {Icons.bell}
             通知设置
           </h3>
           <div className="space-y-6">
             <div className="flex flex-col gap-4">
               <div>
-                <label className="block text-sm text-slate-400 mb-2">通知通道</label>
+                <label className="block text-sm text-gray-500 mb-2">通知通道</label>
                 <select
                   value={notifType}
                   onChange={(e) => setNotifType(e.target.value)}
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500"
                 >
                   <option value="bark">Bark (iOS)</option>
                   <option value="feishu">飞书 Webhook</option>
@@ -259,7 +259,7 @@ export default function Settings() {
               </div>
 
               <div>
-                <label className="block text-sm text-slate-400 mb-2">
+                <label className="block text-sm text-gray-500 mb-2">
                   {notifType === 'bark' ? 'Bark 服务器地址 (例如: https://api.day.app/YOUR_TOKEN/)' : 'Webhook URL'}
                 </label>
                 <input
@@ -271,7 +271,7 @@ export default function Settings() {
                       notifType === 'feishu' ? 'https://open.feishu.cn/open-apis/bot/v2/hook/...' :
                         'https://example.com/webhook'
                   }
-                  className="w-full px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-200 text-sm focus:outline-none focus:border-cyan-500/50 placeholder-slate-600"
+                  className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400"
                 />
               </div>
 
@@ -279,18 +279,18 @@ export default function Settings() {
                 <button
                   onClick={handleTestNotification}
                   disabled={testSending || !url}
-                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 rounded-lg transition-colors disabled:opacity-50"
+                  className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
                 >
                   {testSending ? (
-                    <span className="w-3 h-3 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin" />
+                    <span className="w-3 h-3 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
                   ) : Icons.send}
                   测试发送
                 </button>
               </div>
             </div>
 
-            <label className="flex items-center justify-between p-3 rounded-lg bg-slate-800/30 border border-slate-700/30 cursor-pointer hover:bg-slate-800/50 transition-colors">
-              <span className="text-sm text-slate-300">启用通知</span>
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors">
+              <span className="text-sm text-gray-700">启用通知</span>
               <div className="relative">
                 <input
                   type="checkbox"
@@ -300,27 +300,27 @@ export default function Settings() {
                   }
                   className="sr-only peer"
                 />
-                <div className="w-11 h-6 bg-slate-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-cyan-500" />
+                <div className="w-11 h-6 bg-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600" />
               </div>
             </label>
           </div>
         </div>
 
-        <div className="p-5">
-          <h3 className="font-semibold text-slate-200 mb-4 flex items-center gap-2">
+        <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
             {Icons.info}
             关于
           </h3>
-          <div className="text-sm text-slate-400 space-y-2">
+          <div className="text-sm text-gray-500 space-y-2">
             <p className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
               永劫无间藏宝阁监控系统 v1.0.0
             </p>
             <p className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-500" />
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
               数据来源: 网易藏宝阁官方API
             </p>
-            <p className="text-xs text-slate-500 mt-3 p-3 rounded-lg bg-slate-800/30 border border-slate-700/30">
+            <p className="text-xs text-gray-500 mt-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
               注意: 本工具仅供个人使用，请勿过度请求API
             </p>
           </div>
@@ -331,10 +331,10 @@ export default function Settings() {
         <button
           onClick={handleSave}
           disabled={saving}
-          className="flex items-center gap-2 px-6 py-2.5 bg-cyan-500 hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed text-slate-900 font-semibold rounded-lg transition-colors"
+          className="flex items-center gap-2 px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold rounded-xl shadow-sm hover:shadow-md transition-colors"
         >
           {saving ? (
-            <span className="w-4 h-4 border-2 border-slate-900/30 border-t-slate-900 rounded-full animate-spin" />
+            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           ) : Icons.check}
           保存设置
         </button>

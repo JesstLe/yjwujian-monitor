@@ -165,3 +165,21 @@ export const RARITY_TO_NUMBER: Record<ItemRarity, number> = {
   red: 1,
   gold: 2,
 };
+
+// Compare item for comparison feature
+export interface CompareItem {
+  id: string;
+  itemId: string;
+  parentTypeId: string;
+  serialNum: string;
+  name: string;
+  imageUrl: string | null;
+  captureUrls: string[];
+  currentPrice: number;
+  category: ItemCategory;
+  rarity: ItemRarity;
+  hero: string | null;
+  weapon: string | null;
+  starGrid: StarGrid | null;
+  variationInfo: VariationInfo | null;
+}

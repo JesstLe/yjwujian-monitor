@@ -106,3 +106,16 @@ CREATE INDEX IF NOT EXISTS idx_price_history_time ON price_history(checked_at);
 
 CREATE INDEX IF NOT EXISTS idx_alerts_read ON alerts(is_read);
 CREATE INDEX IF NOT EXISTS idx_alerts_time ON alerts(triggered_at);
+
+-- Compare list for item comparison feature
+CREATE TABLE IF NOT EXISTS compare_list (
+  id TEXT PRIMARY KEY,
+  item_id TEXT NOT NULL,
+  parent_type_id TEXT NOT NULL,
+  serial_num TEXT,
+  item_data TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_compare_list_item ON compare_list(item_id);
+CREATE INDEX IF NOT EXISTS idx_compare_list_parent ON compare_list(parent_type_id);

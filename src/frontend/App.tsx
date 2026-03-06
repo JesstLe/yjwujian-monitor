@@ -1,10 +1,11 @@
-import { Routes, Route } from 'react-router-dom';
-import Layout from './components/Layout';
-import Dashboard from './components/Dashboard';
-import SearchPanel from './components/SearchPanel';
-import Watchlist from './components/Watchlist';
-import Settings from './components/Settings';
-import ItemDetail from './components/ItemDetail';
+import { Routes, Route } from "react-router-dom";
+import Layout from "./components/Layout";
+import Dashboard from "./components/Dashboard";
+import SearchPanel from "./components/SearchPanel";
+import Watchlist from "./components/Watchlist";
+import Settings from "./components/Settings";
+import ItemDetail from "./components/ItemDetail";
+import ComparePage from "./components/ComparePage";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/watchlist" element={<Watchlist />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/item/:id" element={<ItemDetail />} />
+        <Route path="/compare" element={<ComparePage />} />
       </Routes>
     </Layout>
   );

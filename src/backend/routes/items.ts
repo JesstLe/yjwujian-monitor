@@ -1,7 +1,7 @@
 import { Router } from "express";
 import db from "../db/index";
 import cbgClient from "../services/cbg";
-import type { ApiResponse, Item, ItemCategory } from "@shared/types";
+import type { ApiResponse, Item, ItemCategory, VariationInfo } from "@shared/types";
 import {
   parseSqliteDateTime,
   parseRequiredSqliteDateTime,
@@ -73,6 +73,28 @@ function filterByStarGrid(
   return true;
 }
 
+function matchesVariationUnlockLevel(
+  variationInfo: VariationInfo | null,
+  variationUnlockLevel: number,
+): boolean {
+  if (!variationInfo || variationInfo.attributes.length === 0) {
+    return false;
+  }
+
+  const isFullyUnlocked =
+    variationInfo.variationUnlockNum >= variationInfo.attributes.length;
+
+  if (variationUnlockLevel === 1) {
+    return isFullyUnlocked;
+  }
+
+  if (variationUnlockLevel === 2) {
+    return !isFullyUnlocked;
+  }
+
+  return true;
+}
+
 router.get("/search", async (req, res) => {
   try {
     const {
@@ -81,6 +103,7 @@ router.get("/search", async (req, res) => {
       rarity,
       minPrice,
       maxPrice,
+      variationUnlockLevel,
       page = 1,
       limit = 15,
       starLevel,
@@ -110,6 +133,9 @@ router.get("/search", async (req, res) => {
       keyword: q as string,
       priceMin: minPrice ? Number(minPrice) : undefined,
       priceMax: maxPrice ? Number(maxPrice) : undefined,
+      variationUnlockLevel: variationUnlockLevel
+        ? Number(variationUnlockLevel)
+        : undefined,
     };
 
     try {
@@ -247,6 +273,15 @@ router.get("/search", async (req, res) => {
         gameOrdersn: null,
         rawDesc: null,
       }));
+
+      if (filters.variationUnlockLevel) {
+        items = items.filter((item) =>
+          matchesVariationUnlockLevel(
+            item.variationInfo,
+            filters.variationUnlockLevel as number,
+          ),
+        );
+      }
 
       // Apply star grid filtering to cached items
       const starGridFilters = {

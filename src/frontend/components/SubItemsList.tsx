@@ -26,6 +26,10 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
     const [error, setError] = useState<string | null>(null);
     const [selectedItem, setSelectedItem] = useState<Item | null>(null);
     const [showDetail, setShowDetail] = useState(false);
+    const [slotIndex, setSlotIndex] = useState<string>('');
+    const [targetValue, setTargetValue] = useState<string>('');
+    const [minValue, setMinValue] = useState<string>('');
+    const [maxValue, setMaxValue] = useState<string>('');
 
     const handleItemClick = (item: Item) => {
         setSelectedItem(item);
@@ -105,6 +109,32 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
         }
     };
 
+    const filteredItems = items.filter((item) => {
+        if (!slotIndex) {
+            return true;
+        }
+
+        const index = Number(slotIndex) - 1;
+        const value = item.starGrid?.slots?.[index];
+        if (value === null || value === undefined) {
+            return false;
+        }
+
+        if (targetValue) {
+            return value === Number(targetValue);
+        }
+
+        if (minValue && value < Number(minValue)) {
+            return false;
+        }
+
+        if (maxValue && value > Number(maxValue)) {
+            return false;
+        }
+
+        return true;
+    });
+
     return (
         <div className={`space-y-4 ${className}`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -112,26 +142,78 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
                     在售列表
                     <span className="text-sm font-normal text-slate-500 ml-2">
-                        共 {items.length}{hasMore ? '+' : ''} 件
+                        共 {filteredItems.length}{hasMore ? '+' : ''} 件
                     </span>
                 </h2>
 
-                <div className="relative">
-                    <select
-                        value={sort}
-                        onChange={(e) => setSort(e.target.value)}
-                        className="appearance-none pl-4 pr-10 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all cursor-pointer"
-                    >
-                        {SortOptions.map((opt) => (
-                            <option key={opt.value} value={opt.value}>
-                                {opt.label}
-                            </option>
-                        ))}
-                    </select>
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                        </svg>
+                <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <div className="relative">
+                        <select
+                            value={sort}
+                            onChange={(e) => setSort(e.target.value)}
+                            className="appearance-none pl-4 pr-10 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all cursor-pointer"
+                        >
+                            {SortOptions.map((opt) => (
+                                <option key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                </option>
+                            ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-2">
+                        <select
+                            value={slotIndex}
+                            onChange={(e) => setSlotIndex(e.target.value)}
+                            className="px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50"
+                        >
+                            <option value="">星格槽位</option>
+                            <option value="1">槽1</option>
+                            <option value="2">槽2</option>
+                            <option value="3">槽3</option>
+                            <option value="4">槽4</option>
+                        </select>
+
+                        <input
+                            type="number"
+                            value={targetValue}
+                            onChange={(e) => setTargetValue(e.target.value)}
+                            placeholder="定向值"
+                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                        />
+
+                        <input
+                            type="number"
+                            value={minValue}
+                            onChange={(e) => setMinValue(e.target.value)}
+                            placeholder="最小"
+                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                        />
+
+                        <input
+                            type="number"
+                            value={maxValue}
+                            onChange={(e) => setMaxValue(e.target.value)}
+                            placeholder="最大"
+                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                        />
+
+                        <button
+                            onClick={() => {
+                                setSlotIndex('');
+                                setTargetValue('');
+                                setMinValue('');
+                                setMaxValue('');
+                            }}
+                            className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg border border-slate-700/50 transition-colors"
+                        >
+                            清空
+                        </button>
                     </div>
                 </div>
             </div>
@@ -148,14 +230,14 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <div key={i} className="h-80 rounded-xl bg-slate-800/30 animate-pulse" />
                     ))}
                 </div>
-            ) : items.length === 0 ? (
+            ) : filteredItems.length === 0 ? (
                 <div className="text-center py-16 text-slate-500 bg-slate-900/30 rounded-xl border border-slate-800/50">
-                    <p className="text-lg font-medium text-slate-400">暂无在售物品</p>
+                    <p className="text-lg font-medium text-slate-400">当前筛选下暂无在售物品</p>
                 </div>
             ) : (
                 <>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                        {items.map((item) => (
+                        {filteredItems.map((item) => (
                             <ItemCard
                                 key={item.id}
                                 item={item}

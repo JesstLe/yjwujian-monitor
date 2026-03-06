@@ -1,7 +1,8 @@
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../services/api";
 import type { Item } from "@shared/types";
 import CapturePreview from "./CapturePreview";
+import StarGridSlots from "./StarGridSlots";
 
 interface ItemDetailModalProps {
   isOpen: boolean;
@@ -30,7 +31,10 @@ export default function ItemDetailModal({
     setLoading(true);
     try {
       const detail = await api.items.getById(item.id, item.gameOrdersn!);
-      setDetailedItem(detail);
+      setDetailedItem({
+        ...detail,
+        variationInfo: detail.variationInfo ?? item.variationInfo,
+      });
     } catch (error) {
       console.error("Failed to fetch item detail:", error);
     } finally {
@@ -40,7 +44,7 @@ export default function ItemDetailModal({
 
   if (!isOpen || !detailedItem) return null;
 
-  const { rawDesc, starGrid } = detailedItem;
+  const { rawDesc } = detailedItem;
   const formatPrice = (cents: number) => `¥${(cents / 100).toFixed(2)}`;
 
   return (
@@ -126,23 +130,11 @@ export default function ItemDetailModal({
                     <div className="text-sm text-slate-400 mb-2">
                       星格 (Star Grid)
                     </div>
-                    <div className="flex items-center gap-3">
-                      {starGrid?.slots?.map((slot, index) => (
-                        <React.Fragment key={index}>
-                          {index > 0 && (
-                            <div className="h-8 w-px bg-slate-700"></div>
-                          )}
-                          <div className="flex flex-col items-center">
-                            <span className="text-xs text-slate-500">
-                              槽{index + 1}
-                            </span>
-                            <span className="text-yellow-400 font-mono text-xl font-bold">
-                              {slot !== null ? slot : "-"}
-                            </span>
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
+                    {detailedItem.variationInfo ? (
+                      <StarGridSlots variationInfo={detailedItem.variationInfo} />
+                    ) : (
+                      <div className="text-sm text-slate-500">无星格数据</div>
+                    )}
                   </div>
                   <div className="p-4 rounded-lg bg-slate-800/30 border border-slate-700/50 hover:bg-slate-800/50 transition-colors flex flex-col justify-center">
                     <div className="text-sm text-slate-400 mb-1">编号</div>
