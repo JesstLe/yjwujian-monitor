@@ -441,11 +441,36 @@ export default function Watchlist() {
   }, [entries]);
 
   const groupedEntries = useMemo(
-    () =>
-      groups.map((group) => ({
+    () => {
+      const grouped = groups.map((group) => ({
         ...group,
         entries: entriesByGroup.get(group.id) ?? [],
-      })),
+      }));
+
+      for (const [groupId, groupEntries] of entriesByGroup.entries()) {
+        if (groups.some((group) => group.id === groupId)) {
+          continue;
+        }
+
+        const fallbackGroup = groupEntries[0]?.group;
+        grouped.push({
+          id: groupId,
+          name: fallbackGroup?.name || `分组 ${groupId}`,
+          color: fallbackGroup?.color || "#2563eb",
+          alertEnabled: fallbackGroup?.alertEnabled ?? true,
+          sortOrder: fallbackGroup?.sortOrder ?? Number.MAX_SAFE_INTEGER,
+          createdAt: fallbackGroup?.createdAt ?? new Date(0),
+          entries: groupEntries,
+        });
+      }
+
+      return grouped.sort((a, b) => {
+        if (a.sortOrder !== b.sortOrder) {
+          return a.sortOrder - b.sortOrder;
+        }
+        return a.id - b.id;
+      });
+    },
     [groups, entriesByGroup],
   );
 

@@ -12,7 +12,9 @@ router.get("/", (req, res) => {
   try {
     const userId = req.user!.id;
     const rows = db
-      .prepare(`SELECT * FROM groups WHERE user_id = ? ORDER BY sort_order, id`)
+      .prepare(
+        `SELECT * FROM groups WHERE user_id = ? OR id = 1 ORDER BY sort_order, id`,
+      )
       .all(userId) as {
         id: number;
         name: string;
