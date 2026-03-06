@@ -20,6 +20,7 @@
     "db:init": "tsx src/backend/db/init.ts"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.59.0",
     "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "better-sqlite3": "^11.0.0",

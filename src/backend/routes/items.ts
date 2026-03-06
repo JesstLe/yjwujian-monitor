@@ -480,6 +480,13 @@ router.get("/type/:id/listings", async (req, res) => {
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
+    if (message === "CAPTCHA_AUTH_REQUIRED") {
+      res.status(403).json({
+        success: false,
+        error: "网易藏宝阁安全机制拦截（SESSION_TIMEOUT）。请稍等片刻，或尝试在浏览器中访问一次藏宝阁以验证身份。",
+      });
+      return;
+    }
     res.status(500).json({ success: false, error: message });
   }
 });

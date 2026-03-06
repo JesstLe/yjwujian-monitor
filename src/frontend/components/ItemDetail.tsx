@@ -63,10 +63,10 @@ export default function ItemDetail() {
     if (error || !item) {
         return (
             <div className="text-center py-12">
-                <p className="text-red-400 mb-4">{error || '物品未找到'}</p>
+                <p className="text-red-500 mb-4">{error || '物品未找到'}</p>
                 <button
                     onClick={() => navigate(-1)}
-                    className="px-4 py-2 rounded bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
+                    className="px-4 py-2 rounded bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors"
                 >
                     返回上一页
                 </button>
@@ -83,7 +83,7 @@ export default function ItemDetail() {
             {/* Back Button */}
             <button
                 onClick={() => navigate(-1)}
-                className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 mb-6 transition-colors group"
+                className="flex items-center gap-2 text-gray-500 hover:text-cyan-600 mb-6 transition-colors group"
             >
                 <svg className="w-5 h-5 group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
@@ -95,7 +95,7 @@ export default function ItemDetail() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
                 {/* Left: Preview */}
                 <div className="md:col-span-1">
-                    <div className={`rounded-xl overflow-hidden border ${rarity.border} bg-slate-900/50 relative group shadow-lg`}>
+                    <div className={`rounded-xl overflow-hidden border ${rarity.border} bg-white relative group shadow-md`}>
                         <CapturePreview
                             captureUrls={item.captureUrls}
                             fallbackUrl={item.imageUrl}
@@ -113,41 +113,41 @@ export default function ItemDetail() {
                 {/* Right: Info */}
                 <div className="md:col-span-2 space-y-6">
                     <div>
-                        <h1 className="text-4xl font-bold text-slate-100 mb-3 tracking-tight">{item.name}</h1>
+                        <h1 className="text-4xl font-bold text-gray-900 mb-3 tracking-tight">{item.name}</h1>
                         <div className="flex flex-wrap gap-2">
                             {item.hero && (
-                                <span className="px-3 py-1 rounded-md bg-slate-800/80 text-slate-300 text-sm font-medium border border-slate-700/50">
+                                <span className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-sm font-medium border border-gray-200">
                                     {item.hero}
                                 </span>
                             )}
                             {item.weapon && (
-                                <span className="px-3 py-1 rounded-md bg-slate-800/80 text-slate-300 text-sm font-medium border border-slate-700/50">
+                                <span className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-sm font-medium border border-gray-200">
                                     {item.weapon}
                                 </span>
                             )}
-                            <span className="px-3 py-1 rounded-md bg-slate-800/80 text-slate-300 text-sm font-medium border border-slate-700/50">
+                            <span className="px-3 py-1 rounded-md bg-gray-100 text-gray-700 text-sm font-medium border border-gray-200">
                                 {item.category === 'hero_skin' ? '英雄皮肤' : item.category === 'weapon_skin' ? '兵器皮肤' : '道具'}
                             </span>
                         </div>
                     </div>
 
-                    <div className="p-6 rounded-xl bg-gradient-to-br from-slate-900/60 to-slate-900/40 border border-slate-800/50 shadow-inner backdrop-blur-sm">
-                        <div className="text-sm text-slate-500 mb-1">全服最低价格</div>
+                    <div className="p-6 rounded-xl bg-gradient-to-br from-white to-gray-50 border border-gray-200 shadow-sm backdrop-blur-sm">
+                        <div className="text-sm text-gray-500 mb-1">全服最低价格</div>
                         <div className="flex items-end gap-3">
-                            <div className="text-4xl font-bold text-cyan-400 tracking-tight">{formatPrice(item.currentPrice)}</div>
+                            <div className="text-4xl font-bold text-cyan-600 tracking-tight">{formatPrice(item.currentPrice)}</div>
                             {/* Could add price trend indicator here */}
                         </div>
 
-                        <div className="mt-6 flex items-center gap-6 pt-6 border-t border-slate-800/50">
+                        <div className="mt-6 flex items-center gap-6 pt-6 border-t border-gray-200">
                             <div className="flex flex-col">
-                                <span className="text-xs text-slate-500 mb-1">当前在售</span>
-                                <span className="text-lg font-semibold text-slate-200">{item.collectCount}</span>
+                                <span className="text-xs text-gray-500 mb-1">当前在售</span>
+                                <span className="text-lg font-semibold text-gray-700">{item.collectCount}</span>
                             </div>
                             {/* Could add more stats here */}
                         </div>
                     </div>
 
-                    <div className="text-slate-400 text-sm leading-relaxed max-w-2xl">
+                    <div className="text-gray-500 text-sm leading-relaxed max-w-2xl">
                         {/* Description placeholder or future content */}
                         <p>该物品的所有在售信息将显示在下方列表中。您可以查看每件物品的独立编号、星格属性以及独特的 3D 预览。</p>
                     </div>
@@ -155,7 +155,7 @@ export default function ItemDetail() {
             </div>
 
             {/* Sub Items List */}
-            <div className="border-t border-slate-800/50 pt-8">
+            <div className="border-t border-gray-200 pt-8">
                 <SubItemsList
                     equipType={item.id}
                     searchType={searchType}

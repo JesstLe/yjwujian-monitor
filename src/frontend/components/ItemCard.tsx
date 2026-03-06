@@ -174,7 +174,7 @@ function ItemCard({
 
         {isListing && item.variationInfo && (
           <div className="mb-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-            <StarGridSlots variationInfo={item.variationInfo} dense={true} />
+            <StarGridSlots variationInfo={item.variationInfo} theme="light" />
           </div>
         )}
 

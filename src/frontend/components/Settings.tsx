@@ -165,6 +165,11 @@ export default function Settings() {
   // Notification State
   const [notifType, setNotifType] = useState<string>("bark");
   const [url, setUrl] = useState("");
+  // Feishu Specific State
+  const [feishuAppId, setFeishuAppId] = useState("");
+  const [feishuAppSecret, setFeishuAppSecret] = useState("");
+  const [feishuReceiveIdType, setFeishuReceiveIdType] = useState<"open_id" | "user_id" | "union_id" | "email" | "chat_id">("user_id");
+  const [feishuReceiveId, setFeishuReceiveId] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -187,6 +192,10 @@ export default function Settings() {
                 ? JSON.parse(settingsData.notification_config)
                 : settingsData.notification_config;
             if (config.url) setUrl(config.url);
+            if (config.appId) setFeishuAppId(config.appId);
+            if (config.appSecret) setFeishuAppSecret(config.appSecret);
+            if (config.receiveIdType) setFeishuReceiveIdType(config.receiveIdType);
+            if (config.receiveId) setFeishuReceiveId(config.receiveId);
           } catch (e) {
             console.error("Failed to parse notif config", e);
           }
@@ -202,7 +211,19 @@ export default function Settings() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const config = notifType === "pushplus" ? { token: url } : { url: url };
+      let config: any = { url };
+      if (notifType === "pushplus") {
+        config = { token: url };
+      } else if (notifType === "feishu") {
+        config = {
+          url,
+          appId: feishuAppId,
+          appSecret: feishuAppSecret,
+          receiveIdType: feishuReceiveIdType,
+          receiveId: feishuReceiveId,
+        };
+      }
+
       const updates = {
         ...settings,
         notification_type: notifType,
@@ -219,7 +240,10 @@ export default function Settings() {
   };
 
   const handleTestNotification = async () => {
-    if (!url) {
+    if (notifType === "feishu" && !feishuAppId && !url) {
+      alert("请填写飞书 Webhook 地址，或者填写 App ID 与 App Secret。");
+      return;
+    } else if (notifType !== "feishu" && !url) {
       alert(
         notifType === "pushplus"
           ? "请先填写 PushPlus Token"
@@ -229,7 +253,18 @@ export default function Settings() {
     }
     setTestSending(true);
     try {
-      const config = notifType === "pushplus" ? { token: url } : { url: url };
+      let config: any = { url };
+      if (notifType === "pushplus") {
+        config = { token: url };
+      } else if (notifType === "feishu") {
+        config = {
+          url,
+          appId: feishuAppId,
+          appSecret: feishuAppSecret,
+          receiveIdType: feishuReceiveIdType,
+          receiveId: feishuReceiveId,
+        };
+      }
       await api.settings.testNotification({ type: notifType, config });
       alert("测试通知已发送，请检查接收端");
     } catch (e) {
@@ -239,17 +274,11 @@ export default function Settings() {
     }
   };
 
-  const handleMonitorAction = async (action: "start" | "stop" | "checkNow") => {
+  const handleMonitorAction = async (action: "start" | "stop") => {
     setActionLoading(action);
     try {
-      if (action === "checkNow") {
-        const result = await api.monitor.checkNow();
-        alert(`立即检查完成: ${result.message}`);
-      } else {
-        const result =
-          await api.monitor[action === "start" ? "start" : "stop"]();
-        setMonitorStatus(result);
-      }
+      const result = await api.monitor[action]();
+      setMonitorStatus(result);
     } catch {
       alert("操作失败");
     } finally {
@@ -272,96 +301,54 @@ export default function Settings() {
 
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden divide-y divide-gray-100">
         <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
-          <h3 className="font-semibold text-gray-900 mb-4 flex items-center gap-2">
-            <span className="relative flex h-2 w-2">
-              <span
-                className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? "bg-emerald-400" : "bg-gray-400"}`}
-              />
-              <span
-                className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? "bg-emerald-500" : "bg-gray-400"}`}
-              />
-            </span>
-            监控状态
+          <h3 className="font-semibold text-gray-900 mb-4 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2 w-2">
+                <span
+                  className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${monitorStatus?.running ? "bg-emerald-400" : "bg-gray-400"}`}
+                />
+                <span
+                  className={`relative inline-flex rounded-full h-2 w-2 ${monitorStatus?.running ? "bg-emerald-500" : "bg-gray-400"}`}
+                />
+              </span>
+              监控引擎状态
+            </div>
+
+            <button
+              onClick={() => handleMonitorAction(monitorStatus?.running ? "stop" : "start")}
+              disabled={actionLoading !== null}
+              className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${monitorStatus?.running
+                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                  : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+                }`}
+            >
+              {actionLoading !== null ? (
+                <span className={`w-3 h-3 border-2 border-t-transparent rounded-full animate-spin ${monitorStatus?.running ? "border-red-600" : "border-emerald-600"}`} />
+              ) : monitorStatus?.running ? (
+                Icons.stop
+              ) : (
+                Icons.play
+              )}
+              {monitorStatus?.running ? "暂停监控" : "恢复监控"}
+            </button>
           </h3>
           <div className="space-y-4">
-            <div className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200">
+            <div className={`flex items-center justify-between p-3 rounded-xl border ${monitorStatus?.running ? "bg-emerald-50/50 border-emerald-100" : "bg-gray-50 border-gray-200"}`}>
               <div className="flex items-center gap-3">
-                <span
-                  className={`text-sm font-medium ${monitorStatus?.running ? "text-emerald-600" : "text-gray-500"}`}
-                >
-                  {monitorStatus?.running ? "运行中" : "已停止"}
+                <span className={`text-sm font-medium ${monitorStatus?.running ? "text-emerald-600" : "text-gray-500"}`}>
+                  {monitorStatus?.running ? "全局后台服务活跃中" : "全局后台服务已暂停"}
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm text-gray-500">
                 {Icons.clock}
                 <span>
-                  检查间隔: {monitorStatus?.intervalMinutes || 5} 分钟
+                  引擎每 5 分钟自动巡检系统内所有活跃收藏
                 </span>
               </div>
             </div>
-
-            <div className="flex flex-wrap gap-3">
-              <button
-                onClick={() => handleMonitorAction("start")}
-                disabled={actionLoading === "start" || monitorStatus?.running}
-                className="flex items-center gap-2 px-4 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-emerald-200 transition-colors"
-              >
-                {actionLoading === "start" ? (
-                  <span className="w-4 h-4 border-2 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin" />
-                ) : (
-                  Icons.play
-                )}
-                启动监控
-              </button>
-              <button
-                onClick={() => handleMonitorAction("stop")}
-                disabled={actionLoading === "stop" || !monitorStatus?.running}
-                className="flex items-center gap-2 px-4 py-2 bg-red-50 hover:bg-red-100 text-red-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-red-200 transition-colors"
-              >
-                {actionLoading === "stop" ? (
-                  <span className="w-4 h-4 border-2 border-red-600/30 border-t-red-600 rounded-full animate-spin" />
-                ) : (
-                  Icons.stop
-                )}
-                停止监控
-              </button>
-              <button
-                onClick={() => handleMonitorAction("checkNow")}
-                disabled={actionLoading === "checkNow"}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-50 hover:bg-blue-100 text-blue-600 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-medium rounded-xl border border-blue-200 transition-colors"
-              >
-                {actionLoading === "checkNow" ? (
-                  <span className="w-4 h-4 border-2 border-blue-600/30 border-t-blue-600 rounded-full animate-spin" />
-                ) : (
-                  Icons.bolt
-                )}
-                立即检查
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-5 bg-gradient-to-r from-gray-50 to-white">
-          <h3 className="font-semibold text-gray-900 mb-4">监控设置</h3>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm text-gray-500 mb-2">
-                检查间隔 (分钟)
-              </label>
-              <input
-                type="number"
-                min="1"
-                max="60"
-                value={String(settings.check_interval_minutes || 5)}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    check_interval_minutes: parseInt(e.target.value),
-                  })
-                }
-                className="w-32 px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500/30 transition-all"
-              />
-            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              本系统已升级为多终端多用户架构，爬虫监控端在全球范围内常驻执行，保障您的高稀有度网易藏宝阁商品获得无缝追踪。如需临时释放本机性能，可手动暂停。
+            </p>
           </div>
         </div>
 
@@ -395,7 +382,9 @@ export default function Settings() {
                     ? "PushPlus Token"
                     : notifType === "bark"
                       ? "Bark 服务器地址 (例如: https://api.day.app/YOUR_TOKEN/)"
-                      : "Webhook URL"}
+                      : notifType === "feishu"
+                        ? "飞书 Webhook 地址 (群机器人模式)"
+                        : "Webhook URL"}
                 </label>
                 <input
                   type="text"
@@ -407,7 +396,7 @@ export default function Settings() {
                       : notifType === "bark"
                         ? "https://api.day.app/key/"
                         : notifType === "feishu"
-                          ? "https://open.feishu.cn/open-apis/bot/v2/hook/..."
+                          ? "选填：群机器人的 webhook url (如不使用App授权的话)"
                           : "https://example.com/webhook"
                   }
                   className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400"
@@ -427,6 +416,41 @@ export default function Settings() {
                   </p>
                 )}
               </div>
+
+              {notifType === "feishu" && (
+                <div className="pt-4 border-t border-gray-100 space-y-4">
+                  <p className="text-sm font-medium text-gray-700">高级机器人模式（企业自建应用）</p>
+                  <p className="text-xs text-gray-500">
+                    如果您希望机器人可以直接私聊给特定用户，或是由官方服务器推送，请填写下方信息。如果不填，则仅使用上方的 Webhook。
+                  </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">App ID</label>
+                      <input type="text" value={feishuAppId} onChange={e => setFeishuAppId(e.target.value)} placeholder="cli_..." className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">App Secret</label>
+                      <input type="password" value={feishuAppSecret} onChange={e => setFeishuAppSecret(e.target.value)} placeholder="App Secret" className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400" />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">接收者类型 (Receive ID Type)</label>
+                      <select value={feishuReceiveIdType} onChange={e => setFeishuReceiveIdType(e.target.value as any)} className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500">
+                        <option value="user_id">User ID (企业内部)</option>
+                        <option value="open_id">Open ID (推荐，对应用唯一)</option>
+                        <option value="union_id">Union ID</option>
+                        <option value="chat_id">Chat ID (群聊)</option>
+                        <option value="email">Email</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm text-gray-500 mb-2">接收者 ID</label>
+                      <input type="text" value={feishuReceiveId} onChange={e => setFeishuReceiveId(e.target.value)} placeholder="接收者的 ID" className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-gray-900 text-sm focus:outline-none focus:border-blue-500 placeholder-gray-400" />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="flex justify-end">
                 <button

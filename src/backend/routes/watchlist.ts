@@ -230,35 +230,9 @@ async function ensureItemInDatabase(
 router.get("/", (req, res) => {
   try {
     const userId = req.user!.id;
-    // DEV MODE: 获取所有监控项（包括 user_id 为 NULL 的）
-    const DEV_MODE = process.env.NODE_ENV === "development" || true;
     const rows = db
       .prepare(
-        DEV_MODE
-          ? `
-      SELECT
-        w.*,
-        i.name as item_name,
-        i.image_url as item_image_url,
-        i.capture_urls as item_capture_urls,
-        i.serial_num as item_serial_num,
-        i.category as item_category,
-        i.rarity as item_rarity,
-        i.star_grid as item_star_grid,
-        i.variation_info as item_variation_info,
-        i.current_price as item_current_price,
-        i.seller_name as item_seller_name,
-        i.status as item_status,
-        i.collect_count as item_collect_count,
-        i.last_checked_at as item_last_checked_at,
-        g.name as group_name,
-        g.color as group_color
-      FROM watchlist w
-      LEFT JOIN items i ON w.item_id = i.id
-      LEFT JOIN groups g ON w.group_id = g.id
-      ORDER BY w.added_at DESC
-    `
-          : `
+        `
       SELECT
         w.*,
         i.name as item_name,
@@ -281,9 +255,9 @@ router.get("/", (req, res) => {
       LEFT JOIN groups g ON w.group_id = g.id
       WHERE w.user_id = ?
       ORDER BY w.added_at DESC
-    `,
+    `
       )
-      .all(...(DEV_MODE ? [] : [userId])) as WatchlistRow[];
+      .all(userId) as WatchlistRow[];
 
     const entries = rows.map(rowToEntry);
 

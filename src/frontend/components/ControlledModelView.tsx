@@ -7,6 +7,9 @@ interface ControlledModelViewProps {
   serialNum: string;
   price: number;
   angle: number; // 0-360
+  scale?: number;
+  interactionMode?: "rotate" | "pan";
+  resetCounter?: number;
   onAngleChange?: (angle: number) => void;
   isDraggable?: boolean;
 }
@@ -44,14 +47,26 @@ export default function ControlledModelView({
   serialNum,
   price,
   angle,
+  scale = 1,
+  interactionMode = "rotate",
+  resetCounter = 0,
   onAngleChange,
   isDraggable = true,
 }: ControlledModelViewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isDragging, setIsDragging] = useState(false);
-  const [lastX, setLastX] = useState(0);
-  // 记录每张图片是否已加载完毕
+  const [lastPos, setLastPos] = useState({ x: 0, y: 0 });
+  const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
+  const [localScale, setLocalScale] = useState(1);
   const [loadedFrames, setLoadedFrames] = useState<Record<number, boolean>>({});
+
+  // Reset local transform when resetCounter changes
+  useEffect(() => {
+    setLocalPan({ x: 0, y: 0 });
+    setLocalScale(1);
+  }, [resetCounter]);
+
+  const effectiveScale = scale * localScale;
 
   // 将所有URL转换为代理URL
   const proxiedCaptureUrls = useMemo(
@@ -73,11 +88,10 @@ export default function ControlledModelView({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
-      // 保证只能作用于主容器，防止影响子按钮（比如截图按钮）
       if (!isDraggable || !hasCapture) return;
       e.preventDefault();
       setIsDragging(true);
-      setLastX(e.clientX);
+      setLastPos({ x: e.clientX, y: e.clientY });
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
     [isDraggable, hasCapture],
@@ -85,25 +99,41 @@ export default function ControlledModelView({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
-      if (!isDragging || !onAngleChange) return;
+      if (!isDragging) return;
 
-      const deltaX = e.clientX - lastX;
-      setLastX(e.clientX);
+      const deltaX = e.clientX - lastPos.x;
+      const deltaY = e.clientY - lastPos.y;
+      setLastPos({ x: e.clientX, y: e.clientY });
 
-      // 将像素移动转换为角度变化（移动容器宽度时旋转180度）
-      const containerWidth = containerRef.current?.clientWidth || 300;
-      const angleChange = (deltaX / containerWidth) * 180;
+      const isPanning = interactionMode === "pan" || e.buttons === 2 || e.shiftKey;
 
-      const newAngle = angle + angleChange;
-      onAngleChange(newAngle);
+      if (isPanning) {
+        setLocalPan((prev) => ({
+          x: prev.x + deltaX,
+          y: prev.y + deltaY,
+        }));
+      } else if (onAngleChange) {
+        // Rotate mode
+        const containerWidth = containerRef.current?.clientWidth || 300;
+        const angleChange = (deltaX / containerWidth) * 180;
+        onAngleChange(angle + angleChange);
+      }
     },
-    [isDragging, lastX, onAngleChange, angle],
+    [isDragging, lastPos, onAngleChange, angle, interactionMode],
   );
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
     setIsDragging(false);
     (e.target as HTMLElement).releasePointerCapture(e.pointerId);
   }, []);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    if (!isDraggable) return;
+    e.preventDefault();
+    const zoomSensitivity = 0.002;
+    const delta = -e.deltaY * zoomSensitivity;
+    setLocalScale((prevScale) => Math.min(Math.max(0.5, prevScale + delta), 5));
+  }, [isDraggable]);
 
   if (!hasCapture && !proxiedFallbackUrl) {
     return (
@@ -116,12 +146,16 @@ export default function ControlledModelView({
   return (
     <div
       ref={containerRef}
-      className={`select-none ${isDraggable && hasCapture ? "cursor-grab" : ""
+      className={`select-none touch-none ${isDraggable && hasCapture ? "cursor-grab" : ""
         } ${isDragging ? "cursor-grabbing" : ""}`}
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerLeave={handlePointerUp}
+      onWheel={handleWheel}
+      onContextMenu={(e) => {
+        if (isDraggable) e.preventDefault();
+      }}
     >
       {/* 3D 视图区域 */}
       <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-xl group/view">
@@ -130,8 +164,12 @@ export default function ControlledModelView({
           <img
             src={proxiedFallbackUrl}
             alt={name}
-            className={`w-full h-full object-cover transition-opacity duration-150 ${loadedFrames[0] ? "opacity-100" : "opacity-0"
+            className={`w-full h-full object-cover transition-opacity duration-150 transform-gpu origin-center ${loadedFrames[0] ? "opacity-100" : "opacity-0"
               }`}
+            style={{
+              transform: `translate(${localPan.x}px, ${localPan.y}px) scale(${effectiveScale})`,
+              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+            }}
             onLoad={() => setLoadedFrames({ 0: true })}
             loading="lazy"
             draggable={false}
@@ -146,21 +184,21 @@ export default function ControlledModelView({
               key={idx}
               src={url}
               alt={`${name} - 帧 ${idx}`}
-              className={`absolute inset-0 w-full h-full object-cover ${idx === frameIndex ? "visible opacity-100" : "invisible opacity-0"
+              className={`absolute inset-0 w-full h-full object-cover transform-gpu origin-center ${idx === frameIndex ? "visible opacity-100" : "invisible opacity-0"
                 }`}
               onLoad={() => setLoadedFrames((prev) => ({ ...prev, [idx]: true }))}
               loading="lazy"
               draggable={false}
               crossOrigin="anonymous"
-              // 只在可见时赋予 pointer-events-auto，其他完全忽略，防止影响拖拽
-              style={{ pointerEvents: idx === frameIndex ? "auto" : "none" }}
+              style={{
+                pointerEvents: idx === frameIndex ? "auto" : "none",
+                transform: `translate(${localPan.x}px, ${localPan.y}px) scale(${effectiveScale})`,
+                transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+              }}
             />
           ))}
 
-        {/* 加载中的骨架屏（如果当前应该显示的帧还没有加载完） */}
-        {hasCapture && !loadedFrames[frameIndex] && (
-          <div className="absolute inset-0 bg-slate-200/80 animate-pulse pointer-events-none" />
-        )}
+        {/* 只在完全没有加载任何图片并且有fallback时，保留一个最初的加载背景 */}
         {!hasCapture && proxiedFallbackUrl && !loadedFrames[0] && (
           <div className="absolute inset-0 bg-slate-200/80 animate-pulse pointer-events-none" />
         )}
@@ -174,14 +212,23 @@ export default function ControlledModelView({
               stroke="currentColor"
               viewBox="0 0 24 24"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-              />
+              {interactionMode === "rotate" ? (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              ) : (
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
+                />
+              )}
             </svg>
-            <span>拖拽旋转</span>
+            <span>{interactionMode === "rotate" ? "拖拽旋转" : "拖拽平移"}</span>
           </div>
         )}
       </div>

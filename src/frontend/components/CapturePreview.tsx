@@ -140,26 +140,6 @@ export default function CapturePreview({
     };
   }, []);
 
-  const displayUrl =
-    hasCapture && isActivated
-      ? proxiedCaptureUrls[currentFrame]
-      : proxiedFallbackUrl || proxiedCaptureUrls[0];
-
-  useEffect(() => {
-    setImageLoaded(false);
-  }, [displayUrl]);
-
-  if (!displayUrl) {
-    // Placeholder if no image is available
-    return (
-      <div
-        className={`w-full aspect-square bg-slate-800/50 flex items-center justify-center ${className || ""}`}
-      >
-        <span className="text-4xl opacity-20">🎮</span>
-      </div>
-    );
-  }
-
   return (
     <div
       ref={containerRef}
@@ -167,15 +147,30 @@ export default function CapturePreview({
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
-      <img
-        src={displayUrl}
-        alt={alt}
-        className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
-        onLoad={() => setImageLoaded(true)}
-        loading="lazy"
-        crossOrigin="anonymous"
-      />
-      {!imageLoaded && <div className="absolute inset-0 loading-skeleton" />}
+      {/* 渲染并堆叠所有的帧，通过透明度切换而不是直接修改src以解决闪烁问题 */}
+      {hasCapture && isActivated ? (
+        proxiedCaptureUrls.map((url, idx) => (
+          <img
+            key={idx}
+            src={url}
+            alt={`${alt} - 帧 ${idx}`}
+            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-[50ms] ${currentFrame === idx ? "opacity-100" : "opacity-0"
+              }`}
+            loading="lazy"
+            crossOrigin="anonymous"
+          />
+        ))
+      ) : (
+        <img
+          src={proxiedFallbackUrl || ""}
+          alt={alt}
+          className={`w-full h-full object-cover transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"}`}
+          onLoad={() => setImageLoaded(true)}
+          loading="lazy"
+          crossOrigin="anonymous"
+        />
+      )}
+
       {/* 3D Rotation Indicator */}
       {hasCapture && isActivated && isHovering && (
         <div className="absolute bottom-2 right-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/60 text-xs text-cyan-400 backdrop-blur-sm">

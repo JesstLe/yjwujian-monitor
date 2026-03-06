@@ -725,6 +725,9 @@ class CBGClient {
       );
 
       if (response.data.status !== 1) {
+        if (response.data.status_code === "SESSION_TIMEOUT") {
+          throw new Error("CAPTCHA_AUTH_REQUIRED");
+        }
         throw new Error(`API Error: ${response.data.status_code}`);
       }
 

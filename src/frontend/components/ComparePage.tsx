@@ -5,6 +5,7 @@ import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
 import { saveAs } from "file-saver";
 import JSZip from "jszip";
+import StarGridSlots from "./StarGridSlots";
 
 // Icons
 const SearchIcon = () => (
@@ -242,10 +243,12 @@ const CompareTable = ({ items }: { items: CompareItem[] }) => {
       case "weapon":
         return item.weapon || "-";
       case "starGrid":
-        return (
-          item.starGrid?.slots
-            ?.map((s) => (s !== null ? String(s) : "-"))
-            .join(" / ") ?? "-"
+        return item.variationInfo ? (
+          <div className="transform scale-90 origin-left">
+            <StarGridSlots variationInfo={item.variationInfo} theme="light" />
+          </div>
+        ) : (
+          <span className="text-gray-400">-</span>
         );
       case "variationInfo":
         return item.variationInfo?.variationName || "-";

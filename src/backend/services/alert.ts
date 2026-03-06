@@ -9,6 +9,7 @@ interface WatchlistRow {
   item_name: string;
   item_current_price: number;
   item_status: string;
+  user_id: string;
 }
 
 export function checkAndTriggerAlerts(): Alert[] {
@@ -20,11 +21,13 @@ export function checkAndTriggerAlerts(): Alert[] {
         w.target_price,
         i.name as item_name,
         i.current_price as item_current_price,
-        i.status as item_status
+        i.status as item_status,
+        w.user_id
       FROM watchlist w
       JOIN items i ON w.item_id = i.id
       WHERE w.alert_enabled = 1 
         AND w.target_price IS NOT NULL
+        AND w.user_id IS NOT NULL
         AND i.current_price <= w.target_price
     `)
     .all() as WatchlistRow[];
@@ -67,15 +70,15 @@ export function checkAndTriggerAlerts(): Alert[] {
         item.target_price,
       ) as
         | {
-            id: number;
-            watchlist_id: number;
-            item_id: string;
-            triggered_price: number;
-            target_price: number;
-            triggered_at: string;
-            is_read: number;
-            is_resolved: number;
-          }
+          id: number;
+          watchlist_id: number;
+          item_id: string;
+          triggered_price: number;
+          target_price: number;
+          triggered_at: string;
+          is_read: number;
+          is_resolved: number;
+        }
         | undefined;
 
       if (!result) {
@@ -95,7 +98,7 @@ export function checkAndTriggerAlerts(): Alert[] {
 
       newAlerts.push(alert);
 
-      sendNotification({
+      sendNotification(item.user_id, {
         title: '价格提醒',
         body: `${item.item_name} 已降至 ¥${(item.item_current_price / 100).toFixed(2)}，低于目标价 ¥${(item.target_price / 100).toFixed(2)}`,
         data: { alertId: alert.id, itemId: item.item_id },

@@ -1,7 +1,6 @@
 import { Router } from 'express';
 import db from '../db/index';
 import { requireAuth } from '../middleware/auth';
-import { getMonitorStatus, restartMonitor } from '../services/monitor';
 
 const router = Router();
 
@@ -10,8 +9,10 @@ router.use(requireAuth);
 
 router.get('/', (req, res) => {
   try {
-    const userId = req.user!.id;
-    const rows = db.prepare(`SELECT key, value FROM settings WHERE user_id = ?`).all(userId) as { key: string; value: string }[];
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
+    const rows = db.prepare(`SELECT key, value FROM user_settings WHERE user_id = ?`).all(userId) as { key: string; value: string }[];
 
     const settings: Record<string, string | boolean | number> = {};
     for (const row of rows) {
@@ -26,13 +27,11 @@ router.get('/', (req, res) => {
       }
     }
 
-    const monitorStatus = getMonitorStatus();
-
     res.json({
       success: true,
       data: {
         ...settings,
-        monitorRunning: monitorStatus.running,
+        monitorRunning: true, // Monitor is now a global background daemon
       },
     });
   } catch (error) {
@@ -62,13 +61,14 @@ router.post('/test', async (req, res) => {
 
 router.put('/', (req, res) => {
   try {
-    const userId = req.user!.id;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ success: false, error: 'Unauthorized' });
+
     const updates = req.body;
-    const intervalChanged = 'check_interval_minutes' in updates;
 
     const stmt = db.prepare(`
-      INSERT INTO settings (key, value, user_id) VALUES (?, ?, ?)
-      ON CONFLICT(key, user_id) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      INSERT INTO user_settings (user_id, key, value) VALUES (?, ?, ?)
+      ON CONFLICT(user_id, key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
     `);
 
     const transaction = db.transaction((updatesObj: Record<string, unknown>) => {
@@ -79,21 +79,13 @@ router.put('/', (req, res) => {
         } else {
           stringValue = String(value);
         }
-        stmt.run(key, stringValue, userId);
+        stmt.run(userId, key, stringValue);
       }
     });
 
     transaction(updates);
 
-    if (intervalChanged) {
-      const status = getMonitorStatus();
-      if (status.running) {
-        restartMonitor();
-      }
-    }
-
-    const monitorStatus = getMonitorStatus();
-    res.json({ success: true, data: { monitorRunning: monitorStatus.running } });
+    res.json({ success: true, data: { monitorRunning: true } });
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error';
     res.status(500).json({ success: false, error: message });

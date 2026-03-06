@@ -137,10 +137,10 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
     return (
         <div className={`space-y-4 ${className}`}>
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
+                <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
                     <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
                     在售列表
-                    <span className="text-sm font-normal text-slate-500 ml-2">
+                    <span className="text-sm font-normal text-gray-500 ml-2">
                         共 {items.length}{hasMore ? '+' : ''} 件
                     </span>
                 </h2>
@@ -150,7 +150,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <select
                             value={sort}
                             onChange={(e) => setSort(e.target.value)}
-                            className="appearance-none pl-4 pr-10 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all cursor-pointer"
+                            className="appearance-none pl-4 pr-10 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/30 transition-all cursor-pointer shadow-sm"
                         >
                             {SortOptions.map((opt) => (
                                 <option key={opt.value} value={opt.value}>
@@ -158,7 +158,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                                 </option>
                             ))}
                         </select>
-                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
+                        <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -169,7 +169,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <select
                             value={variationUnlockLevel}
                             onChange={(e) => setVariationUnlockLevel(e.target.value)}
-                            className="px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50"
+                            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         >
                             <option value="">星格</option>
                             <option value="2">星格部分解封</option>
@@ -179,7 +179,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                         <select
                             value={slotIndex}
                             onChange={(e) => setSlotIndex(e.target.value)}
-                            className="px-3 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm focus:outline-none focus:border-cyan-500/50"
+                            className="px-3 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         >
                             <option value="">星格槽位</option>
                             <option value="1">槽1</option>
@@ -193,7 +193,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                             value={targetValue}
                             onChange={(e) => setTargetValue(e.target.value)}
                             placeholder="定向值"
-                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                            className="w-20 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         />
 
                         <input
@@ -201,7 +201,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                             value={minValue}
                             onChange={(e) => setMinValue(e.target.value)}
                             placeholder="最小"
-                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                            className="w-20 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         />
 
                         <input
@@ -209,7 +209,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                             value={maxValue}
                             onChange={(e) => setMaxValue(e.target.value)}
                             placeholder="最大"
-                            className="w-20 px-2.5 py-2 bg-slate-800/50 border border-slate-700/50 rounded-lg text-slate-300 text-sm placeholder-slate-500 focus:outline-none focus:border-cyan-500/50"
+                            className="w-20 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         />
 
                         <button
@@ -220,7 +220,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                                 setMinValue('');
                                 setMaxValue('');
                             }}
-                            className="px-3 py-2 text-sm text-slate-400 hover:text-slate-200 hover:bg-slate-800/40 rounded-lg border border-slate-700/50 transition-colors"
+                            className="px-3 py-2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors shadow-sm bg-white"
                         >
                             清空
                         </button>
@@ -229,7 +229,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
             </div>
 
             {error && (
-                <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                <div className="p-4 rounded-lg bg-red-50 border border-red-100 text-red-600 text-sm shadow-sm">
                     {error}
                 </div>
             )}
@@ -237,12 +237,12 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
             {loading && page === 1 ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     {[...Array(8)].map((_, i) => (
-                        <div key={i} className="h-80 rounded-xl bg-slate-800/30 animate-pulse" />
+                        <div key={i} className="h-80 rounded-xl bg-gray-100 animate-pulse" />
                     ))}
                 </div>
             ) : items.length === 0 ? (
-                <div className="text-center py-16 text-slate-500 bg-slate-900/30 rounded-xl border border-slate-800/50">
-                    <p className="text-lg font-medium text-slate-400">当前筛选下暂无在售物品</p>
+                <div className="text-center py-16 text-gray-500 bg-gray-50 rounded-xl border border-gray-200">
+                    <p className="text-lg font-medium text-gray-400">当前筛选下暂无在售物品</p>
                 </div>
             ) : (
                 <>
@@ -263,11 +263,11 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                             <button
                                 onClick={handleLoadMore}
                                 disabled={loadingMore}
-                                className="px-6 py-2.5 bg-slate-800/50 hover:bg-slate-700/50 text-slate-300 rounded-lg border border-slate-700/50 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                className="px-6 py-2.5 bg-white hover:bg-gray-50 text-gray-700 rounded-lg border border-gray-200 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2 shadow-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-200"
                             >
                                 {loadingMore ? (
                                     <>
-                                        <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
                                         加载中...
                                     </>
                                 ) : (

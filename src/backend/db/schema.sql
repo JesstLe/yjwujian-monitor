@@ -76,18 +76,17 @@ CREATE TABLE IF NOT EXISTS alerts (
   FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 );
 
--- User settings
-CREATE TABLE IF NOT EXISTS settings (
-  key TEXT PRIMARY KEY,
+-- User settings (replaces global settings)
+CREATE TABLE IF NOT EXISTS user_settings (
+  user_id TEXT NOT NULL,
+  key TEXT NOT NULL,
   value TEXT NOT NULL,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, key),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );
 
--- Default settings
-INSERT OR IGNORE INTO settings (key, value) VALUES
-  ('check_interval_minutes', '5'),
-  ('notification_enabled', 'true'),
-  ('notification_sound', 'true');
+CREATE INDEX IF NOT EXISTS idx_user_settings_user ON user_settings(user_id);
 
 -- Indexes for common queries
 CREATE INDEX IF NOT EXISTS idx_items_category ON items(category);

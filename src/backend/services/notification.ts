@@ -1,6 +1,8 @@
 import axios from "axios";
 import db from "../db/index";
 
+import * as lark from "@larksuiteoapi/node-sdk";
+
 export type NotificationType =
   | "bark"
   | "feishu"
@@ -11,6 +13,10 @@ export type NotificationType =
 export interface NotificationConfig {
   url: string;
   token?: string;
+  appId?: string; // For Feishu SDK
+  appSecret?: string; // For Feishu SDK
+  receiveIdType?: "open_id" | "user_id" | "union_id" | "email" | "chat_id"; // Target type
+  receiveId?: string; // Target ID
 }
 
 export class NotificationService {
@@ -48,11 +54,39 @@ export class NotificationService {
           break;
         }
         case "feishu": {
-          // Feishu: POST https://open.feishu.cn/open-apis/bot/v2/hook/TOKEN
-          await axios.post(config.url, {
-            msg_type: "text",
-            content: { text: `${title}\n\n${finalContent}` },
-          });
+          if (config.appId && config.appSecret) {
+            // Use official Lark SDK
+            const client = new lark.Client({
+              appId: config.appId,
+              appSecret: config.appSecret,
+              domain: lark.Domain.Feishu,
+            });
+
+            const receiveIdType = config.receiveIdType || "user_id";
+            const receiveId = config.receiveId || "";
+
+            await client.im.message.create({
+              params: {
+                receive_id_type: receiveIdType,
+              },
+              data: {
+                receive_id: receiveId,
+                msg_type: "text",
+                content: JSON.stringify({
+                  text: `${title}\n\n${finalContent}`,
+                }),
+              },
+            });
+          } else if (config.url) {
+            // Feishu Webhook fallback
+            await axios.post(config.url, {
+              msg_type: "text",
+              content: { text: `${title}\n\n${finalContent}` },
+            });
+          } else {
+            console.warn("Feishu config missing both App credentials and Webhook URL");
+            return false;
+          }
           break;
         }
         case "dingtalk": {
@@ -95,20 +129,23 @@ export class NotificationService {
 }
 
 // Legacy/Global sender that reads settings from DB
-export async function sendNotification(payload: {
-  title: string;
-  body: string;
-  data?: any;
-}): Promise<void> {
-  console.log(`[Notification] ${payload.title}: ${payload.body}`, payload.data);
+export async function sendNotification(
+  userId: string,
+  payload: {
+    title: string;
+    body: string;
+    data?: any;
+  }
+): Promise<void> {
+  console.log(`[Notification for user ${userId}] ${payload.title}: ${payload.body}`, payload.data);
 
   try {
     const rows = db
-      .prepare("SELECT key, value FROM settings WHERE key IN (?, ?)")
-      .all("notification_type", "notification_config") as {
-      key: string;
-      value: string;
-    }[];
+      .prepare("SELECT key, value FROM user_settings WHERE user_id = ? AND key IN (?, ?)")
+      .all(userId, "notification_type", "notification_config") as {
+        key: string;
+        value: string;
+      }[];
     const settings: Record<string, string> = {};
     rows.forEach((row) => {
       settings[row.key] = row.value;
@@ -119,7 +156,7 @@ export async function sendNotification(payload: {
       try {
         config = JSON.parse(settings.notification_config);
       } catch (e) {
-        console.error("Failed to parse notification config:", e);
+        console.error("Failed to parse notification config for user:", userId, e);
         return;
       }
 

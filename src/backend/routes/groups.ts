@@ -11,22 +11,16 @@ router.use(requireAuth);
 router.get("/", (req, res) => {
   try {
     const userId = req.user!.id;
-    // DEV MODE: 获取所有分组（包括 user_id 为 NULL 的）
-    const DEV_MODE = process.env.NODE_ENV === "development" || true;
     const rows = db
-      .prepare(
-        DEV_MODE
-          ? `SELECT * FROM groups ORDER BY sort_order, id`
-          : `SELECT * FROM groups WHERE user_id = ? ORDER BY sort_order, id`,
-      )
-      .all(...(DEV_MODE ? [] : [userId])) as {
-      id: number;
-      name: string;
-      color: string;
-      alert_enabled: number;
-      sort_order: number;
-      created_at: string;
-    }[];
+      .prepare(`SELECT * FROM groups WHERE user_id = ? ORDER BY sort_order, id`)
+      .all(userId) as {
+        id: number;
+        name: string;
+        color: string;
+        alert_enabled: number;
+        sort_order: number;
+        created_at: string;
+      }[];
 
     const groups: WatchlistGroup[] = rows.map((row) => ({
       id: row.id,
@@ -68,13 +62,13 @@ router.post("/", (req, res) => {
     `,
       )
       .get(name, color, sortOrder, userId) as {
-      id: number;
-      name: string;
-      color: string;
-      alert_enabled: number;
-      sort_order: number;
-      created_at: string;
-    };
+        id: number;
+        name: string;
+        color: string;
+        alert_enabled: number;
+        sort_order: number;
+        created_at: string;
+      };
 
     res.status(201).json({
       success: true,

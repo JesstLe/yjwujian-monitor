@@ -11,18 +11,6 @@ const MONITOR_CONCURRENCY = Math.max(
 );
 
 function getIntervalFromSettings(): number {
-  try {
-    const row = db
-      .prepare(`SELECT value FROM settings WHERE key = 'check_interval_minutes'`)
-      .get() as { value: string } | undefined;
-
-    if (row?.value) {
-      const parsed = parseInt(row.value, 10);
-      return isNaN(parsed) || parsed <= 0 ? DEFAULT_INTERVAL_MINUTES : parsed;
-    }
-  } catch {
-    return DEFAULT_INTERVAL_MINUTES;
-  }
   return DEFAULT_INTERVAL_MINUTES;
 }
 

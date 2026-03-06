@@ -191,6 +191,26 @@ const Icons = {
       />
     </svg>
   ),
+  zoomIn: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7" />
+    </svg>
+  ),
+  zoomOut: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
+    </svg>
+  ),
+  hand: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
+    </svg>
+  ),
+  rotate: (
+    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    </svg>
+  ),
 };
 
 /**
@@ -307,6 +327,9 @@ export default function Compare3DPage() {
   const [loading, setLoading] = useState(true);
   const [angle, setAngle] = useState(0);
   const [isAutoRotating, setIsAutoRotating] = useState(false);
+  const [scale, setScale] = useState(1);
+  const [interactionMode, setInteractionMode] = useState<"rotate" | "pan">("rotate");
+  const [resetCounter, setResetCounter] = useState(0);
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   // 预览弹窗状态
@@ -340,37 +363,10 @@ export default function Compare3DPage() {
     };
   }, [isAutoRotating]);
 
-  // 拖拽控制
-  const handleDragStart = useCallback(
-    (e: React.PointerEvent) => {
-      if (isAutoRotating) return;
-
-      const startX = e.clientX;
-      const startAngle = angle;
-
-      const handleMove = (moveEvent: PointerEvent) => {
-        const deltaX = moveEvent.clientX - startX;
-        // 水平移动转换为角度变化（每10像素约11.25度）
-        const deltaAngle = (deltaX / 10) * 11.25;
-        setAngle((((startAngle + deltaAngle) % 360) + 360) % 360);
-      };
-
-      const handleUp = () => {
-        document.removeEventListener("pointermove", handleMove);
-        document.removeEventListener("pointerup", handleUp);
-        if (containerRef.current) {
-          containerRef.current.releasePointerCapture(e.pointerId);
-        }
-      };
-
-      document.addEventListener("pointermove", handleMove);
-      document.addEventListener("pointerup", handleUp);
-      if (containerRef.current) {
-        containerRef.current.setPointerCapture(e.pointerId);
-      }
-    },
-    [angle, isAutoRotating],
-  );
+  // 缩放操作
+  const handleZoom = useCallback((direction: 'in' | 'out') => {
+    setScale((prev) => Math.min(Math.max(1, prev + (direction === 'in' ? 0.5 : -0.5)), 5));
+  }, []);
 
   // 滑块控制
   const handleSliderChange = useCallback(
@@ -388,6 +384,8 @@ export default function Compare3DPage() {
   // 重置
   const handleReset = useCallback(() => {
     setAngle(0);
+    setScale(1);
+    setResetCounter(prev => prev + 1);
   }, []);
 
   // 切换自动旋转
@@ -521,6 +519,31 @@ export default function Compare3DPage() {
               {Icons.right}
             </button>
 
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
+            {/* 缩放按钮 */}
+            <button
+              onClick={() => handleZoom('in')}
+              disabled={scale >= 5}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="放大"
+            >
+              {Icons.zoomIn}
+            </button>
+            <div className="px-2 py-1 text-xs font-medium text-gray-500 min-w-[40px] text-center">
+              {Math.round(scale * 100)}%
+            </div>
+            <button
+              onClick={() => handleZoom('out')}
+              disabled={scale <= 1}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="缩小"
+            >
+              {Icons.zoomOut}
+            </button>
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
             {/* 角度显示 */}
             <div className="px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 min-w-[80px] text-center">
               <span className="text-sm font-bold text-blue-600">
@@ -537,6 +560,38 @@ export default function Compare3DPage() {
               {Icons.reset}
               重置
             </button>
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
+            {/* 操作模式切换 */}
+            <div className="flex bg-gray-100 p-1 rounded-lg">
+              <button
+                onClick={() => setInteractionMode("rotate")}
+                disabled={isAutoRotating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${interactionMode === "rotate"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""}`}
+                title="左键拖拽旋转"
+              >
+                {Icons.rotate}
+                旋转
+              </button>
+              <button
+                onClick={() => setInteractionMode("pan")}
+                disabled={isAutoRotating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${interactionMode === "pan"
+                    ? "bg-white text-blue-600 shadow-sm"
+                    : "text-gray-500 hover:text-gray-700"
+                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""}`}
+                title="左键拖拽平移"
+              >
+                {Icons.hand}
+                平移
+              </button>
+            </div>
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
 
             {/* 自动旋转 */}
             <button
@@ -556,8 +611,7 @@ export default function Compare3DPage() {
       {/* 3D 展示区域 */}
       <div
         ref={containerRef}
-        onPointerDown={handleDragStart}
-        className={`px-4 py-8 ${!isAutoRotating ? "cursor-grab active:cursor-grabbing" : ""}`}
+        className="px-4 py-8 overflow-hidden"
       >
         <div className="max-w-full overflow-x-auto pb-4">
           <div className="flex gap-4 min-w-max px-4">
@@ -570,7 +624,9 @@ export default function Compare3DPage() {
                   serialNum={item.serialNum}
                   price={item.currentPrice}
                   angle={angle}
-                  isDraggable={false}
+                  scale={scale}
+                  interactionMode={interactionMode}
+                  resetCounter={resetCounter}
                 />
                 {/* 截图保存按钮 */}
                 {item.captureUrls && item.captureUrls.length > 0 && (
@@ -596,7 +652,7 @@ export default function Compare3DPage() {
           <p className="text-sm text-gray-400">
             {isAutoRotating
               ? "自动旋转中..."
-              : "← 拖拽此区域旋转所有模型 · 悬停物品点击📷截图 →"}
+              : "← 鼠标悬停独立操作：左键拖拽旋转/平移 · 滚轮缩放 · 右下角📷截图 →"}
           </p>
         </div>
       </div>
