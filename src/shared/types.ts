@@ -183,3 +183,46 @@ export interface CompareItem {
   starGrid: StarGrid | null;
   variationInfo: VariationInfo | null;
 }
+
+// User types
+export interface User {
+  id: string;
+  email: string;
+  username: string | null;
+  avatarUrl: string | null;
+  emailVerified: boolean;
+  createdAt: Date;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  username?: string;
+}
+
+export interface AuthResponse {
+  success: boolean;
+  message?: string;
+  user?: User;
+  error?: string;
+  requiresDeviceVerification?: boolean;
+}
+
+export interface NewDeviceVerifyRequest {
+  email: string;
+  code: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  password: string;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
