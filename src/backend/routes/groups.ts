@@ -1,18 +1,23 @@
 import { Router } from 'express';
 import db from '../db/index';
+import { requireAuth } from '../middleware/auth';
 import type { ApiResponse, WatchlistGroup } from '@shared/types';
 
 const router = Router();
 
-router.get('/', (_req, res) => {
+// Apply authentication middleware to all routes
+router.use(requireAuth);
+
+router.get('/', (req, res) => {
   try {
+    const userId = req.user!.id;
     const rows = db
       .prepare(
         `
-      SELECT * FROM groups ORDER BY sort_order, id
+      SELECT * FROM groups WHERE user_id = ? ORDER BY sort_order, id
     `
       )
-      .all() as {
+      .all(userId) as {
       id: number;
       name: string;
       color: string;
@@ -39,6 +44,7 @@ router.get('/', (_req, res) => {
 
 router.post('/', (req, res) => {
   try {
+    const userId = req.user!.id;
     const { name, color = '#3b82f6' } = req.body;
 
     if (!name) {
@@ -46,18 +52,18 @@ router.post('/', (req, res) => {
       return;
     }
 
-    const maxOrder = db.prepare(`SELECT MAX(sort_order) as max FROM groups`).get() as { max: number | null };
+    const maxOrder = db.prepare(`SELECT MAX(sort_order) as max FROM groups WHERE user_id = ?`).get(userId) as { max: number | null };
     const sortOrder = (maxOrder.max ?? 0) + 1;
 
     const result = db
       .prepare(
         `
-      INSERT INTO groups (name, color, sort_order)
-      VALUES (?, ?, ?)
+      INSERT INTO groups (name, color, sort_order, user_id)
+      VALUES (?, ?, ?, ?)
       RETURNING *
     `
       )
-      .get(name, color, sortOrder) as {
+      .get(name, color, sortOrder, userId) as {
       id: number;
       name: string;
       color: string;
@@ -86,6 +92,7 @@ router.post('/', (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user!.id;
     const { name, color, alertEnabled, sortOrder } = req.body;
 
     const updates: string[] = [];
@@ -114,7 +121,8 @@ router.put('/:id', (req, res) => {
     }
 
     values.push(Number(id));
-    const result = db.prepare(`UPDATE groups SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    values.push(userId);
+    const result = db.prepare(`UPDATE groups SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
 
     if (result.changes === 0) {
       res.status(404).json({ success: false, error: 'Group not found' });
@@ -131,13 +139,14 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user!.id;
 
     if (Number(id) === 1) {
       res.status(400).json({ success: false, error: 'Cannot delete default group' });
       return;
     }
 
-    const result = db.prepare(`DELETE FROM groups WHERE id = ?`).run(Number(id));
+    const result = db.prepare(`DELETE FROM groups WHERE id = ? AND user_id = ?`).run(Number(id), userId);
 
     if (result.changes === 0) {
       res.status(404).json({ success: false, error: 'Group not found' });

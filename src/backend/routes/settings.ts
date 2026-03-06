@@ -1,12 +1,17 @@
 import { Router } from 'express';
 import db from '../db/index';
+import { requireAuth } from '../middleware/auth';
 import { getMonitorStatus, restartMonitor } from '../services/monitor';
 
 const router = Router();
 
-router.get('/', (_req, res) => {
+// Apply authentication middleware to all routes
+router.use(requireAuth);
+
+router.get('/', (req, res) => {
   try {
-    const rows = db.prepare(`SELECT key, value FROM settings`).all() as { key: string; value: string }[];
+    const userId = req.user!.id;
+    const rows = db.prepare(`SELECT key, value FROM settings WHERE user_id = ?`).all(userId) as { key: string; value: string }[];
 
     const settings: Record<string, string | boolean | number> = {};
     for (const row of rows) {
@@ -57,15 +62,16 @@ router.post('/test', async (req, res) => {
 
 router.put('/', (req, res) => {
   try {
+    const userId = req.user!.id;
     const updates = req.body;
     const intervalChanged = 'check_interval_minutes' in updates;
 
     const stmt = db.prepare(`
-      INSERT INTO settings (key, value) VALUES (?, ?)
-      ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
+      INSERT INTO settings (key, value, user_id) VALUES (?, ?, ?)
+      ON CONFLICT(key, user_id) DO UPDATE SET value = excluded.value, updated_at = CURRENT_TIMESTAMP
     `);
 
-    const transaction = db.transaction((updatesObj: Record<string, any>) => {
+    const transaction = db.transaction((updatesObj: Record<string, unknown>) => {
       for (const [key, value] of Object.entries(updatesObj)) {
         let stringValue: string;
         if (typeof value === 'object' && value !== null) {
@@ -73,7 +79,7 @@ router.put('/', (req, res) => {
         } else {
           stringValue = String(value);
         }
-        stmt.run(key, stringValue);
+        stmt.run(key, stringValue, userId);
       }
     });
 

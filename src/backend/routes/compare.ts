@@ -2,9 +2,13 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { cbgClient } from "../services/cbg.js";
+import { requireAuth } from "../middleware/auth.js";
 import type { Item, CompareItem } from "@shared/types";
 
 const router = Router();
+
+// Apply authentication middleware to all routes
+router.use(requireAuth);
 
 // Validation schemas
 const addItemSchema = z.object({
@@ -111,17 +115,19 @@ router.get("/search", async (req, res) => {
 });
 
 // GET /api/compare - 获取对比列表
-router.get("/", async (_req, res) => {
+router.get("/", async (req, res) => {
   try {
+    const userId = req.user!.id;
     const rows = db
       .prepare(
         `
       SELECT id, item_id, parent_type_id, serial_num, item_data, created_at
       FROM compare_list
+      WHERE user_id = ?
       ORDER BY created_at ASC
     `,
       )
-      .all() as {
+      .all(userId) as {
       id: string;
       item_id: string;
       parent_type_id: string;
@@ -160,13 +166,14 @@ router.get("/", async (_req, res) => {
 // POST /api/compare - 添加物品到对比列表
 router.post("/", async (req, res) => {
   try {
+    const userId = req.user!.id;
     const data = addItemSchema.parse(req.body);
 
     const id = `compare-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 
     const stmt = db.prepare(`
-      INSERT INTO compare_list (id, item_id, parent_type_id, serial_num, item_data)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO compare_list (id, item_id, parent_type_id, serial_num, item_data, user_id)
+      VALUES (?, ?, ?, ?, ?, ?)
     `);
 
     stmt.run(
@@ -175,6 +182,7 @@ router.post("/", async (req, res) => {
       data.parentTypeId,
       data.serialNum,
       JSON.stringify(data),
+      userId,
     );
 
     const newItem: CompareItem = {
@@ -205,14 +213,15 @@ router.post("/", async (req, res) => {
 router.delete("/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user!.id;
 
     const result = db
       .prepare(
         `
-      DELETE FROM compare_list WHERE id = ?
+      DELETE FROM compare_list WHERE id = ? AND user_id = ?
     `,
       )
-      .run(id);
+      .run(id, userId);
 
     if (result.changes === 0) {
       return res.status(404).json({ error: "Item not found" });

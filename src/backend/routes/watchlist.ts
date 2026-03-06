@@ -1,10 +1,14 @@
 import { Router } from 'express';
 import db from '../db/index';
 import cbgClient from '../services/cbg';
+import { requireAuth } from '../middleware/auth';
 import type { ApiResponse, WatchlistEntry, Item } from '@shared/types';
 import { parseSqliteDateTime, parseRequiredSqliteDateTime } from '../utils/date-utils';
 
 const router = Router();
+
+// Apply authentication middleware to all routes
+router.use(requireAuth);
 
 interface WatchlistRow {
   id: number;
@@ -193,12 +197,13 @@ async function ensureItemInDatabase(itemId: string, incomingItem?: Item): Promis
   return resolvedItem;
 }
 
-router.get('/', (_req, res) => {
+router.get('/', (req, res) => {
   try {
+    const userId = req.user!.id;
     const rows = db
       .prepare(
         `
-      SELECT 
+      SELECT
         w.*,
         i.name as item_name,
         i.image_url as item_image_url,
@@ -218,10 +223,11 @@ router.get('/', (_req, res) => {
       FROM watchlist w
       LEFT JOIN items i ON w.item_id = i.id
       LEFT JOIN groups g ON w.group_id = g.id
+      WHERE w.user_id = ?
       ORDER BY w.added_at DESC
     `
       )
-      .all() as WatchlistRow[];
+      .all(userId) as WatchlistRow[];
 
     const entries = rows.map(rowToEntry);
 
@@ -234,6 +240,7 @@ router.get('/', (_req, res) => {
 
 router.post('/', async (req, res) => {
   try {
+    const userId = req.user!.id;
     const { itemId, groupId = 1, targetPrice, alertEnabled = true, notes, item } = req.body;
 
     if (!itemId) {
@@ -241,7 +248,7 @@ router.post('/', async (req, res) => {
       return;
     }
 
-    const existing = db.prepare(`SELECT id FROM watchlist WHERE item_id = ?`).get(itemId);
+    const existing = db.prepare(`SELECT id FROM watchlist WHERE item_id = ? AND user_id = ?`).get(itemId, userId);
     if (existing) {
       res.status(400).json({ success: false, error: 'Item already in watchlist' });
       return;
@@ -252,12 +259,12 @@ router.post('/', async (req, res) => {
     const result = db
       .prepare(
         `
-      INSERT INTO watchlist (item_id, group_id, target_price, alert_enabled, notes)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO watchlist (item_id, group_id, target_price, alert_enabled, notes, user_id)
+      VALUES (?, ?, ?, ?, ?, ?)
       RETURNING *
     `
       )
-      .get(itemId, groupId, targetPrice, alertEnabled ? 1 : 0, notes) as {
+      .get(itemId, groupId, targetPrice, alertEnabled ? 1 : 0, notes, userId) as {
         id: number;
         item_id: string;
         group_id: number;
@@ -288,6 +295,7 @@ router.post('/', async (req, res) => {
 router.put('/:id', (req, res) => {
   try {
     const { id } = req.params;
+    const userId = req.user!.id;
     const { targetPrice, alertEnabled, groupId, notes } = req.body;
 
     const updates: string[] = [];
@@ -316,7 +324,8 @@ router.put('/:id', (req, res) => {
     }
 
     values.push(Number(id));
-    const result = db.prepare(`UPDATE watchlist SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+    values.push(userId);
+    const result = db.prepare(`UPDATE watchlist SET ${updates.join(', ')} WHERE id = ? AND user_id = ?`).run(...values);
 
     if (result.changes === 0) {
       res.status(404).json({ success: false, error: 'Watchlist entry not found' });
@@ -333,7 +342,8 @@ router.put('/:id', (req, res) => {
 router.delete('/:id', (req, res) => {
   try {
     const { id } = req.params;
-    const result = db.prepare(`DELETE FROM watchlist WHERE id = ?`).run(Number(id));
+    const userId = req.user!.id;
+    const result = db.prepare(`DELETE FROM watchlist WHERE id = ? AND user_id = ?`).run(Number(id), userId);
 
     if (result.changes === 0) {
       res.status(404).json({ success: false, error: 'Watchlist entry not found' });
