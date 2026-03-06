@@ -30,9 +30,17 @@
 
 ![设置页](screenshots-final/settings-real-desktop.png)
 
+### 2D 对比页
+
+![2D 对比页](screenshots-final/compare-real-desktop.png)
+
 ### 3D 对比页
 
 ![3D 对比页](screenshots-final/compare-3d-real-desktop.png)
+
+### 对比功能展示
+
+![对比功能展示](screenshots-final/compare-2d.JPG)
 
 ## 页面与模块
 
