@@ -5,6 +5,9 @@ import type { CompareItem } from "@shared/types";
 import ControlledModelView from "./ControlledModelView";
 import { saveAs } from "file-saver";
 
+const MIN_COMPARE_SCALE = 1;
+const MAX_COMPARE_SCALE = 8;
+
 // 将外部图片URL转换为代理URL（与 ControlledModelView 保持一致）
 function getProxyImageUrl(url: string): string {
   const proxyDomains = [
@@ -396,7 +399,15 @@ export default function Compare3DPage() {
 
   // 缩放操作
   const handleZoom = useCallback((direction: 'in' | 'out') => {
-    setScale((prev) => Math.min(Math.max(1, prev + (direction === 'in' ? 0.5 : -0.5)), 5));
+    setScale((prev) =>
+      Math.min(
+        Math.max(
+          MIN_COMPARE_SCALE,
+          prev + (direction === 'in' ? 0.5 : -0.5),
+        ),
+        MAX_COMPARE_SCALE,
+      ),
+    );
   }, []);
 
   // 滑块控制
@@ -568,23 +579,23 @@ export default function Compare3DPage() {
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
             {/* 缩放按钮 */}
-            <button
-              onClick={() => handleZoom('in')}
-              disabled={scale >= 5}
-              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="放大"
-            >
+             <button
+               onClick={() => handleZoom('in')}
+               disabled={scale >= MAX_COMPARE_SCALE}
+               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+               title="放大"
+             >
               {Icons.zoomIn}
             </button>
             <div className="px-2 py-1 text-xs font-medium text-gray-500 min-w-[40px] text-center">
               {Math.round(scale * 100)}%
             </div>
-            <button
-              onClick={() => handleZoom('out')}
-              disabled={scale <= 1}
-              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title="缩小"
-            >
+             <button
+               onClick={() => handleZoom('out')}
+               disabled={scale <= MIN_COMPARE_SCALE}
+               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+               title="缩小"
+             >
               {Icons.zoomOut}
             </button>
 
@@ -696,9 +707,13 @@ export default function Compare3DPage() {
         className="px-4 py-8 overflow-hidden"
       >
         <div className="max-w-full overflow-x-auto pb-4">
-          <div className="flex gap-4 min-w-max px-4">
+          <div className="flex gap-4 min-w-max px-4 items-start">
             {items.map((item) => (
-              <div key={item.id} className="flex-shrink-0 w-64 group relative">
+              <div
+                key={item.id}
+                className="flex-shrink-0 group relative"
+                style={{ width: "clamp(18rem, calc((100vw - 8rem) / 3), 24rem)" }}
+              >
                 <ControlledModelView
                   captureUrls={item.captureUrls || []}
                   fallbackUrl={item.imageUrl}

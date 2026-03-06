@@ -61,6 +61,7 @@ export default function ControlledModelView({
   const [localPan, setLocalPan] = useState({ x: 0, y: 0 });
   const [localScale, setLocalScale] = useState(1);
   const [loadedFrames, setLoadedFrames] = useState<Record<number, boolean>>({});
+  const [frameAspectRatio, setFrameAspectRatio] = useState<number>(1884 / 900);
 
   // Reset local transform when resetCounter changes
   useEffect(() => {
@@ -143,6 +144,17 @@ export default function ControlledModelView({
     setLocalScale((prevScale) => Math.min(Math.max(0.5, prevScale + delta), 5));
   }, [isDraggable]);
 
+  const handleFrameLoad = useCallback(
+    (idx: number, event: React.SyntheticEvent<HTMLImageElement>) => {
+      const image = event.currentTarget;
+      if (image.naturalWidth > 0 && image.naturalHeight > 0) {
+        setFrameAspectRatio(image.naturalWidth / image.naturalHeight);
+      }
+      setLoadedFrames((prev) => ({ ...prev, [idx]: true }));
+    },
+    [],
+  );
+
   if (!hasCapture && !proxiedFallbackUrl) {
     return (
       <div className="w-full aspect-square bg-slate-800/50 flex items-center justify-center rounded-xl">
@@ -166,19 +178,25 @@ export default function ControlledModelView({
       }}
     >
       {/* 3D 视图区域 */}
-      <div className="relative aspect-square overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-xl group/view">
+      <div
+        className="relative overflow-hidden bg-gradient-to-br from-slate-100 to-slate-200 rounded-t-xl group/view"
+        style={{ aspectRatio: String(frameAspectRatio) }}
+      >
         {/* 如果没有3D图片，只显示回退图片 */}
         {!hasCapture && proxiedFallbackUrl && (
           <img
             src={proxiedFallbackUrl}
             alt={name}
-            className={`w-full h-full object-cover transition-opacity duration-150 transform-gpu origin-center ${loadedFrames[0] ? "opacity-100" : "opacity-0"
+            className={`w-full h-full object-contain transition-opacity duration-150 transform-gpu origin-center ${loadedFrames[0] ? "opacity-100" : "opacity-0"
               }`}
-            style={{
-              transform: `translate(${localPan.x}px, ${localPan.y}px) scale(${effectiveScale})`,
-              transition: isDragging ? 'none' : 'transform 0.1s ease-out',
-            }}
-            onLoad={() => setLoadedFrames({ 0: true })}
+              style={{
+                transform: `translate(${localPan.x}px, ${localPan.y}px) scale(${effectiveScale})`,
+                transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                imageRendering: "auto",
+                willChange: "transform",
+                backfaceVisibility: "hidden",
+              }}
+            onLoad={(event) => handleFrameLoad(0, event)}
             loading="lazy"
             draggable={false}
             crossOrigin="anonymous"
@@ -192,9 +210,9 @@ export default function ControlledModelView({
               key={idx}
               src={url}
               alt={`${name} - 帧 ${idx}`}
-              className={`absolute inset-0 w-full h-full object-cover transform-gpu origin-center ${idx === frameIndex ? "visible opacity-100" : "invisible opacity-0"
+              className={`absolute inset-0 w-full h-full object-contain transform-gpu origin-center ${idx === frameIndex ? "visible opacity-100" : "invisible opacity-0"
                 }`}
-              onLoad={() => setLoadedFrames((prev) => ({ ...prev, [idx]: true }))}
+              onLoad={(event) => handleFrameLoad(idx, event)}
               loading="lazy"
               draggable={false}
               crossOrigin="anonymous"
@@ -202,6 +220,9 @@ export default function ControlledModelView({
                 pointerEvents: idx === frameIndex ? "auto" : "none",
                 transform: `translate(${effectivePan.x}px, ${effectivePan.y}px) scale(${effectiveScale})`,
                 transition: isDragging ? 'none' : 'transform 0.1s ease-out',
+                imageRendering: "auto",
+                willChange: "transform",
+                backfaceVisibility: "hidden",
               }}
             />
           ))}
