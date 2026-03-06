@@ -5,6 +5,30 @@ import { cbgClient } from "../services/cbg.js";
 import { requireAuth } from "../middleware/auth.js";
 import type { Item, CompareItem } from "@shared/types";
 
+// 代理外部图片以绕过 CORS
+async function fetchExternalImage(
+  url: string,
+): Promise<{ data: Buffer; contentType: string }> {
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      Accept:
+        "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8",
+      Referer: "https://cbg.163.com/",
+    },
+  });
+  if (!response.ok) {
+    throw new Error(`Failed to fetch image: ${response.status}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  const contentType = response.headers.get("content-type") || "image/png";
+  return {
+    data: Buffer.from(arrayBuffer),
+    contentType,
+  };
+}
+
 const router = Router();
 
 // Apply authentication middleware to all routes
@@ -25,6 +49,43 @@ const addItemSchema = z.object({
   weapon: z.string().nullable(),
   starGrid: z.object({ slots: z.array(z.number().nullable()) }).nullable(),
   variationInfo: z.any().nullable(),
+});
+
+// GET /api/compare/proxy-image - 代理外部图片以绕过 CORS
+router.get("/proxy-image", async (req, res) => {
+  try {
+    const { url } = req.query;
+
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({ error: "Missing url parameter" });
+    }
+
+    // 验证 URL 是否来自允许的域名
+    const allowedDomains = [
+      "cbg-capture.res.netease.com",
+      "cbg-yaots.res.netease.com",
+      "img.cbgtf.163.com",
+      "game.gtimg.cn",
+    ];
+
+    const urlObj = new URL(url);
+    if (!allowedDomains.some((domain) => urlObj.hostname.includes(domain))) {
+      return res.status(403).json({ error: "Domain not allowed" });
+    }
+
+    const { data, contentType } = await fetchExternalImage(url);
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400"); // 缓存 24 小时
+    res.send(data);
+  } catch (error) {
+    console.error("Proxy image failed:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
+    res
+      .status(500)
+      .json({ error: "Failed to fetch image", details: errorMessage });
+  }
 });
 
 // GET /api/compare/types - 获取所有物品类型列表

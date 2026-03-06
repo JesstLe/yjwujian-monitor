@@ -3,16 +3,37 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { CompareItem } from "@shared/types";
 import ControlledModelView from "./ControlledModelView";
+import { saveAs } from "file-saver";
 
 const Icons = {
   back: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M10 19l-7-7m0 0l7-7m-7 7h18"
+      />
     </svg>
   ),
   reset: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+      />
     </svg>
   ),
   play: (
@@ -26,23 +47,78 @@ const Icons = {
     </svg>
   ),
   left: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M15 19l-7-7 7-7"
+      />
     </svg>
   ),
   right: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 5l7 7-7 7"
+      />
     </svg>
   ),
   cube: (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
     </svg>
   ),
   empty: (
-    <svg className="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+    <svg
+      className="w-16 h-16"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.5}
+        d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
+      />
+    </svg>
+  ),
+  download: (
+    <svg
+      className="w-4 h-4"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l4-4m5 3V8m0 6a3 3 0 003 3h10a3 3 0 003-3V8m0-6V4m0 16v1a3 3 0 003 3h10a3 3 0 003-3v-1"
+      />
     </svg>
   ),
 };
@@ -85,42 +161,48 @@ export default function Compare3DPage() {
   }, [isAutoRotating]);
 
   // 拖拽控制
-  const handleDragStart = useCallback((e: React.PointerEvent) => {
-    if (isAutoRotating) return;
+  const handleDragStart = useCallback(
+    (e: React.PointerEvent) => {
+      if (isAutoRotating) return;
 
-    const startX = e.clientX;
-    const startAngle = angle;
+      const startX = e.clientX;
+      const startAngle = angle;
 
-    const handleMove = (moveEvent: PointerEvent) => {
-      const deltaX = moveEvent.clientX - startX;
-      // 水平移动转换为角度变化（每10像素约11.25度）
-      const deltaAngle = (deltaX / 10) * 11.25;
-      setAngle(((startAngle + deltaAngle) % 360 + 360) % 360);
-    };
+      const handleMove = (moveEvent: PointerEvent) => {
+        const deltaX = moveEvent.clientX - startX;
+        // 水平移动转换为角度变化（每10像素约11.25度）
+        const deltaAngle = (deltaX / 10) * 11.25;
+        setAngle((((startAngle + deltaAngle) % 360) + 360) % 360);
+      };
 
-    const handleUp = () => {
-      document.removeEventListener("pointermove", handleMove);
-      document.removeEventListener("pointerup", handleUp);
+      const handleUp = () => {
+        document.removeEventListener("pointermove", handleMove);
+        document.removeEventListener("pointerup", handleUp);
+        if (containerRef.current) {
+          containerRef.current.releasePointerCapture(e.pointerId);
+        }
+      };
+
+      document.addEventListener("pointermove", handleMove);
+      document.addEventListener("pointerup", handleUp);
       if (containerRef.current) {
-        containerRef.current.releasePointerCapture(e.pointerId);
+        containerRef.current.setPointerCapture(e.pointerId);
       }
-    };
-
-    document.addEventListener("pointermove", handleMove);
-    document.addEventListener("pointerup", handleUp);
-    if (containerRef.current) {
-      containerRef.current.setPointerCapture(e.pointerId);
-    }
-  }, [angle, isAutoRotating]);
+    },
+    [angle, isAutoRotating],
+  );
 
   // 滑块控制
-  const handleSliderChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setAngle(Number(e.target.value));
-  }, []);
+  const handleSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setAngle(Number(e.target.value));
+    },
+    [],
+  );
 
   // 步进控制
   const stepAngle = useCallback((delta: number) => {
-    setAngle((prev) => ((prev + delta) % 360 + 360) % 360);
+    setAngle((prev) => (((prev + delta) % 360) + 360) % 360);
   }, []);
 
   // 重置
@@ -132,6 +214,33 @@ export default function Compare3DPage() {
   const toggleAutoRotate = useCallback(() => {
     setIsAutoRotating((prev) => !prev);
   }, []);
+
+  // 导出当前角度的单张图片
+  const exportCurrentImage = useCallback(
+    async (item: CompareItem) => {
+      if (!item.captureUrls || item.captureUrls.length === 0) {
+        alert("该物品没有3D图片可导出");
+        return;
+      }
+
+      // 获取当前角度对应的图片URL
+      const frameIndex = Math.floor((((angle % 360) + 360) / 360) * 32) % 32;
+      const currentImageUrl = item.captureUrls[frameIndex];
+      const fileName = `${item.name.replace(/[^\w\u4e00-\u9fa5]/g, "_") || "item"}_${Math.round(angle)}deg.png`;
+
+      try {
+        // 直接下载图片
+        const response = await fetch(currentImageUrl);
+        const blob = await response.blob();
+        saveAs(blob, fileName);
+      } catch (error) {
+        console.error("Export failed:", error);
+        // 如果fetch失败，尝试直接打开链接
+        window.open(currentImageUrl, "_blank");
+      }
+    },
+    [angle],
+  );
 
   // 物品少于2个时显示提示
   if (!loading && items.length < 2) {
@@ -227,7 +336,9 @@ export default function Compare3DPage() {
 
             {/* 角度显示 */}
             <div className="px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 min-w-[80px] text-center">
-              <span className="text-sm font-bold text-blue-600">{currentFrameAngle}°</span>
+              <span className="text-sm font-bold text-blue-600">
+                {currentFrameAngle}°
+              </span>
             </div>
 
             {/* 重置按钮 */}
@@ -265,7 +376,7 @@ export default function Compare3DPage() {
         <div className="max-w-full overflow-x-auto pb-4">
           <div className="flex gap-4 min-w-max px-4">
             {items.map((item) => (
-              <div key={item.id} className="flex-shrink-0 w-64">
+              <div key={item.id} className="flex-shrink-0 w-64 group relative">
                 <ControlledModelView
                   captureUrls={item.captureUrls || []}
                   fallbackUrl={item.imageUrl}
@@ -275,6 +386,17 @@ export default function Compare3DPage() {
                   angle={angle}
                   isDraggable={false}
                 />
+                {/* 导出按钮 */}
+                {item.captureUrls && item.captureUrls.length > 0 && (
+                  <button
+                    onClick={() => exportCurrentImage(item)}
+                    className="absolute bottom-16 right-2 p-2 bg-white/90 hover:bg-white rounded-lg shadow-md opacity-0 group-hover:opacity-100 transition-opacity text-xs font-medium text-gray-600 hover:text-blue-600 flex items-center gap-1"
+                    title="保存当前角度图片"
+                  >
+                    {Icons.download}
+                    <span className="hidden sm:inline">保存</span>
+                  </button>
+                )}
               </div>
             ))}
           </div>
@@ -283,9 +405,7 @@ export default function Compare3DPage() {
         {/* 提示 */}
         <div className="text-center mt-4">
           <p className="text-sm text-gray-400">
-            {isAutoRotating
-              ? "自动旋转中..."
-              : "← 拖拽此区域旋转所有模型 →"}
+            {isAutoRotating ? "自动旋转中..." : "← 拖拽此区域旋转所有模型 →"}
           </p>
         </div>
       </div>

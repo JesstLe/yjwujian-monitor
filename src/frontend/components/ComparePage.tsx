@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
+import html2canvas from "html2canvas";
 
 // Icons
 const SearchIcon = () => (
@@ -69,6 +70,29 @@ const CloseIcon = () => (
   </svg>
 );
 
+// 将外部图片URL转换为代理URL
+const getProxyImageUrl = (
+  url: string | null | undefined,
+): string | undefined => {
+  if (!url) return undefined;
+  // 检查是否是需要代理的域名
+  const proxyDomains = [
+    "cbg-capture.res.netease.com",
+    "cbg-yaots.res.netease.com",
+    "img.cbgtf.163.com",
+    "game.gtimg.cn",
+  ];
+  try {
+    const urlObj = new URL(url);
+    if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
+      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // URL解析失败，返回原URL
+  }
+  return url;
+};
+
 const CompareCard = ({
   item,
   onRemove,
@@ -79,6 +103,7 @@ const CompareCard = ({
   onClick: (item: CompareItem) => void;
 }) => {
   const formatPrice = (price: number) => (price / 100).toFixed(2);
+  const proxyImageUrl = getProxyImageUrl(item.imageUrl);
 
   return (
     <div
@@ -87,11 +112,12 @@ const CompareCard = ({
     >
       {/* 预览图 */}
       <div className="relative aspect-square bg-gradient-to-br from-slate-50 via-gray-50 to-slate-100">
-        {item.imageUrl ? (
+        {proxyImageUrl ? (
           <img
-            src={item.imageUrl}
+            src={proxyImageUrl}
             alt={item.name}
             className="w-full h-full object-cover"
+            crossOrigin="anonymous"
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center text-gray-300">
@@ -124,9 +150,11 @@ const CompareCard = ({
         <button
           onClick={(e) => {
             e.stopPropagation();
-            onRemove(item.id);
+            if (confirm(`确定要从对比列表中移除 "${item.name}" 吗？`)) {
+              onRemove(item.id);
+            }
           }}
-          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-red-50 hover:scale-110 text-gray-400 hover:text-red-500 shadow-md"
+          className="absolute top-3 right-3 p-2 bg-white/90 backdrop-blur-sm rounded-xl transition-all duration-300 hover:bg-red-50 hover:scale-110 text-gray-400 hover:text-red-500 shadow-md"
         >
           <TrashIcon />
         </button>
@@ -146,7 +174,6 @@ const CompareCard = ({
             {formatPrice(item.currentPrice)}
           </span>
         </div>
-
       </div>
     </div>
   );
@@ -283,6 +310,35 @@ export default function ComparePage() {
   const [searchError, setSearchError] = useState<string | null>(null);
   const [compareList, setCompareList] = useState<CompareItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<CompareItem | null>(null);
+  const compareCardRef = useRef<HTMLDivElement>(null);
+
+  // 导出对比卡片为图片
+  const exportCompareCard = useCallback(async () => {
+    if (!compareCardRef.current) return;
+
+    try {
+      const canvas = await html2canvas(compareCardRef.current, {
+        backgroundColor: "#ffffff",
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        logging: false,
+      });
+      canvas.toBlob((blob) => {
+        if (blob) {
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `compare_${Date.now()}.png`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }
+      });
+    } catch (error) {
+      console.error("导出失败:", error);
+      alert("导出失败，请重试");
+    }
+  }, []);
 
   // 加载物品类型列表
   useEffect(() => {
@@ -474,9 +530,10 @@ export default function ComparePage() {
               <div className="flex items-center gap-4">
                 {searchResult.imageUrl && (
                   <img
-                    src={searchResult.imageUrl}
+                    src={getProxyImageUrl(searchResult.imageUrl)}
                     alt={searchResult.name}
                     className="w-20 h-20 rounded-2xl object-cover border-2 border-white shadow-md"
+                    crossOrigin="anonymous"
                   />
                 )}
                 <div>
@@ -491,44 +548,46 @@ export default function ComparePage() {
                     <span className="text-2xl font-bold text-emerald-600">
                       {(searchResult.currentPrice / 100).toFixed(2)}
                     </span>
-          </div>
-        </div>
+                  </div>
+                </div>
 
-        {compareList.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20">
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl flex items-center justify-center mb-5 shadow-sm">
-              <svg
-                className="w-12 h-12 text-blue-300"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={1.5}
-                  d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
-                />
-              </svg>
-            </div>
-            <p className="text-base font-semibold text-gray-600 mb-1">
-              暂无对比物品
-            </p>
-            <p className="text-sm text-gray-400">搜索并添加物品开始对比</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-            {compareList.map((item) => (
-              <CompareCard
-                key={item.id}
-                item={item}
-                onRemove={handleRemove}
-                onClick={setSelectedItem}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+                {compareList.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-20">
+                    <div className="w-24 h-24 bg-gradient-to-br from-blue-50 to-indigo-100 rounded-3xl flex items-center justify-center mb-5 shadow-sm">
+                      <svg
+                        className="w-12 h-12 text-blue-300"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={1.5}
+                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-base font-semibold text-gray-600 mb-1">
+                      暂无对比物品
+                    </p>
+                    <p className="text-sm text-gray-400">
+                      搜索并添加物品开始对比
+                    </p>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                    {compareList.map((item) => (
+                      <CompareCard
+                        key={item.id}
+                        item={item}
+                        onRemove={handleRemove}
+                        onClick={setSelectedItem}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
               <button
                 onClick={() => handleAddToCompare(searchResult)}
                 className="flex-shrink-0 px-6 py-3 bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-600 hover:to-green-700 text-white rounded-xl font-medium transition-all duration-200 flex items-center gap-2 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
@@ -570,6 +629,27 @@ export default function ComparePage() {
                 <span>3D对比</span>
               </button>
             )}
+            {compareList.length >= 1 && (
+              <button
+                onClick={exportCompareCard}
+                className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white text-sm font-medium rounded-xl transition-all shadow-md hover:shadow-lg"
+              >
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                  />
+                </svg>
+                <span>导出图片</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -596,7 +676,10 @@ export default function ComparePage() {
             <p className="text-sm text-gray-400">搜索并添加物品开始对比</p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+          <div
+            ref={compareCardRef}
+            className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
+          >
             {compareList.map((item) => (
               <CompareCard
                 key={item.id}

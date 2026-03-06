@@ -1,4 +1,4 @@
-import { useRef, useCallback, useEffect, useState } from "react";
+import { useRef, useCallback, useEffect, useState, useMemo } from "react";
 
 interface ControlledModelViewProps {
   captureUrls: string[];
@@ -9,6 +9,26 @@ interface ControlledModelViewProps {
   angle: number; // 0-360
   onAngleChange?: (angle: number) => void;
   isDraggable?: boolean;
+}
+
+// 将外部图片URL转换为代理URL
+function getProxyImageUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  const proxyDomains = [
+    "cbg-capture.res.netease.com",
+    "cbg-yaots.res.netease.com",
+    "img.cbgtf.163.com",
+    "game.gtimg.cn",
+  ];
+  try {
+    const urlObj = new URL(url);
+    if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
+      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+    }
+  } catch {
+    // URL解析失败，返回原URL
+  }
+  return url;
 }
 
 // 将角度转换为帧索引（32帧对应0-360度）
@@ -32,19 +52,31 @@ export default function ControlledModelView({
   const [lastX, setLastX] = useState(0);
   const [imageLoaded, setImageLoaded] = useState(false);
 
-  const hasCapture = captureUrls.length > 0;
+  // 将所有URL转换为代理URL
+  const proxiedCaptureUrls = useMemo(
+    () => captureUrls.map((url) => getProxyImageUrl(url) || url),
+    [captureUrls],
+  );
+  const proxiedFallbackUrl = useMemo(
+    () => getProxyImageUrl(fallbackUrl),
+    [fallbackUrl],
+  );
+
+  const hasCapture = proxiedCaptureUrls.length > 0;
   const frameIndex = hasCapture ? angleToFrameIndex(angle) : 0;
-  const displayUrl = hasCapture ? captureUrls[frameIndex] : fallbackUrl;
+  const displayUrl = hasCapture
+    ? proxiedCaptureUrls[frameIndex]
+    : proxiedFallbackUrl;
 
   // Preload all frames
   useEffect(() => {
     if (hasCapture) {
-      captureUrls.forEach((url) => {
+      proxiedCaptureUrls.forEach((url) => {
         const img = new Image();
         img.src = url;
       });
     }
-  }, [captureUrls, hasCapture]);
+  }, [proxiedCaptureUrls, hasCapture]);
 
   // Reset image loaded state when frame changes
   useEffect(() => {
@@ -59,7 +91,7 @@ export default function ControlledModelView({
       setLastX(e.clientX);
       (e.target as HTMLElement).setPointerCapture(e.pointerId);
     },
-    [isDraggable, hasCapture]
+    [isDraggable, hasCapture],
   );
 
   const handlePointerMove = useCallback(
@@ -76,7 +108,7 @@ export default function ControlledModelView({
       const newAngle = angle + angleChange;
       onAngleChange(newAngle);
     },
-    [isDragging, lastX, onAngleChange, angle]
+    [isDragging, lastX, onAngleChange, angle],
   );
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -114,6 +146,7 @@ export default function ControlledModelView({
           onLoad={() => setImageLoaded(true)}
           loading="lazy"
           draggable={false}
+          crossOrigin="anonymous"
         />
         {!imageLoaded && (
           <div className="absolute inset-0 bg-slate-200 animate-pulse" />
@@ -141,7 +174,10 @@ export default function ControlledModelView({
 
       {/* 信息区域 */}
       <div className="p-3 bg-white rounded-b-xl border-t border-gray-100">
-        <h4 className="text-sm font-semibold text-gray-900 truncate" title={name}>
+        <h4
+          className="text-sm font-semibold text-gray-900 truncate"
+          title={name}
+        >
           {name}
         </h4>
         <p className="text-xs text-gray-400 mt-0.5">{serialNum || "无编号"}</p>
