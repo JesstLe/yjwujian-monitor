@@ -267,7 +267,7 @@ router.get("/search", async (req, res) => {
         rarity: row.rarity as "gold" | "red",
         hero: row.hero,
         weapon: row.weapon,
-        starGrid: parseStarGrid(row.star_grid),
+        starGrid: row.star_grid ? parseStarGrid(row.star_grid) : { slots: [null, null, null, null] },
         variationInfo: row.variation_info
           ? JSON.parse(row.variation_info)
           : null,
@@ -395,7 +395,7 @@ router.get("/:id", async (req, res) => {
         rarity: cached.rarity as "gold" | "red",
         hero: cached.hero,
         weapon: cached.weapon,
-        starGrid: parseStarGrid(cached.star_grid),
+        starGrid: cached.star_grid ? parseStarGrid(cached.star_grid) : { slots: [null, null, null, null] },
         variationInfo: cached.variation_info
           ? JSON.parse(cached.variation_info)
           : null,

@@ -104,8 +104,6 @@ export default function SearchPanel() {
   const [maxPrice, setMaxPrice] = useState<string>("");
   const [seller, setSeller] = useState<string>("");
 
-  const [variationUnlockLevel, setVariationUnlockLevel] = useState<string>("");
-
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -124,9 +122,6 @@ export default function SearchPanel() {
         rarity: rarity || undefined,
         minPrice: minPrice ? Number(minPrice) : undefined,
         maxPrice: maxPrice ? Number(maxPrice) : undefined,
-        variationUnlockLevel: variationUnlockLevel
-          ? Number(variationUnlockLevel)
-          : undefined,
         seller: seller || undefined,
         page,
         limit: 15,
@@ -144,7 +139,6 @@ export default function SearchPanel() {
     rarity,
     minPrice,
     maxPrice,
-    variationUnlockLevel,
     seller,
     page,
   ]);
@@ -164,7 +158,6 @@ export default function SearchPanel() {
     rarity,
     minPrice,
     maxPrice,
-    variationUnlockLevel,
     seller,
   ]);
 
@@ -196,12 +189,6 @@ export default function SearchPanel() {
     },
   ];
 
-  const starUnlockOptions = [
-    { value: "", label: "星格" },
-    { value: "2", label: "星格部分解封" },
-    { value: "1", label: "星格全解封" },
-  ];
-
   return (
     <div className="flex flex-col lg:flex-row gap-8">
       {/* Sidebar Filters */}
@@ -216,36 +203,15 @@ export default function SearchPanel() {
               <button
                 key={cat.value}
                 onClick={() => setCategory(cat.value)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${
-                  category === cat.value
-                    ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25"
-                    : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 hover:border-gray-200"
-                }`}
+                className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 ${category === cat.value
+                  ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md shadow-blue-500/25"
+                  : "text-gray-700 hover:bg-gray-50 hover:text-gray-900 border border-gray-100 hover:border-gray-200"
+                  }`}
               >
                 {cat.label}
               </button>
             ))}
           </div>
-        </div>
-
-        {/* Star Grid Filter - Separate Card */}
-        <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl border border-amber-100 shadow-sm p-5">
-          <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4 flex items-center gap-2">
-            <span className="text-amber-500 text-lg">★</span>
-            星格筛选
-          </h3>
-          <select
-            value={variationUnlockLevel}
-            onChange={(e) => setVariationUnlockLevel(e.target.value)}
-            className="w-full px-4 py-3 bg-white border border-amber-200 rounded-xl text-sm text-gray-900 focus:ring-2 focus:ring-amber-400 focus:border-transparent transition-all cursor-pointer shadow-sm"
-          >
-            {starUnlockOptions.map((option) => (
-              <option key={option.value || "all"} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-          <p className="text-xs text-amber-600/70 mt-3">筛选星格的解封状态</p>
         </div>
 
         {/* Seller Filter */}
@@ -300,18 +266,16 @@ export default function SearchPanel() {
             {rarities.map((r) => (
               <label
                 key={r.value}
-                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
-                  rarity === r.value
-                    ? `border-current ${r.color} bg-gradient-to-r from-white to-gray-50 shadow-sm`
-                    : "border-gray-100 bg-white text-gray-600 hover:border-gray-200 hover:bg-gray-50"
-                }`}
+                className={`flex items-center gap-3 p-4 rounded-xl border-2 cursor-pointer transition-all duration-200 ${rarity === r.value
+                  ? `border-current ${r.color} bg-gradient-to-r from-white to-gray-50 shadow-sm`
+                  : "border-gray-100 bg-white text-gray-600 hover:border-gray-200 hover:bg-gray-50"
+                  }`}
               >
                 <div
-                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
-                    rarity === r.value
-                      ? "bg-current border-current"
-                      : "border-gray-300"
-                  }`}
+                  className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${rarity === r.value
+                    ? "bg-current border-current"
+                    : "border-gray-300"
+                    }`}
                 >
                   {rarity === r.value && (
                     <div className="text-white transform scale-75">
@@ -395,22 +359,20 @@ export default function SearchPanel() {
               rarity ||
               minPrice ||
               maxPrice ||
-              variationUnlockLevel ||
               seller) && (
-              <button
-                onClick={() => {
-                  setQuery("");
-                  setRarity("");
-                  setMinPrice("");
-                  setMaxPrice("");
-                  setVariationUnlockLevel("");
-                  setSeller("");
-                }}
-                className="mt-8 px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-md shadow-blue-500/25 transition-all"
-              >
-                清除所有筛选
-              </button>
-            )}
+                <button
+                  onClick={() => {
+                    setQuery("");
+                    setRarity("");
+                    setMinPrice("");
+                    setMaxPrice("");
+                    setSeller("");
+                  }}
+                  className="mt-8 px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-md shadow-blue-500/25 transition-all"
+                >
+                  清除所有筛选
+                </button>
+              )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 animate-fade-in relative">

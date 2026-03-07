@@ -60,7 +60,7 @@ function rowToEntry(row: WatchlistRow): WatchlistEntry {
       rarity: row.item_rarity as Item["rarity"],
       hero: null,
       weapon: null,
-      starGrid: parseStarGrid(row.item_star_grid),
+      starGrid: row.item_star_grid ? parseStarGrid(row.item_star_grid) : { slots: [null, null, null, null] },
       variationInfo: row.item_variation_info
         ? JSON.parse(row.item_variation_info)
         : null,
@@ -175,7 +175,7 @@ async function ensureItemInDatabase(
         rarity: existing.rarity as Item["rarity"],
         hero: existing.hero,
         weapon: existing.weapon,
-        starGrid: parseStarGrid(existing.star_grid),
+        starGrid: existing.star_grid ? parseStarGrid(existing.star_grid) : { slots: [null, null, null, null] },
         variationInfo: existing.variation_info
           ? JSON.parse(existing.variation_info)
           : null,

@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { z } from "zod";
-import { db } from "../db/index.js";
-import { cbgClient } from "../services/cbg.js";
-import { requireAuth } from "../middleware/auth.js";
+import db from "../db/index";
+import cbgClient from "../services/cbg";
+import { requireAuth } from "../middleware/auth";
 import type { Item, CompareItem } from "@shared/types";
 
 // 代理外部图片以绕过 CORS
@@ -189,13 +189,13 @@ router.get("/", async (req, res) => {
     `,
       )
       .all(userId) as {
-      id: string;
-      item_id: string;
-      parent_type_id: string;
-      serial_num: string | null;
-      item_data: string;
-      created_at: string;
-    }[];
+        id: string;
+        item_id: string;
+        parent_type_id: string;
+        serial_num: string | null;
+        item_data: string;
+        created_at: string;
+      }[];
 
     const items: CompareItem[] = rows.map((row) => {
       const data = JSON.parse(row.item_data);
@@ -220,7 +220,8 @@ router.get("/", async (req, res) => {
     res.json(items);
   } catch (error) {
     console.error("Failed to get compare list:", error);
-    res.status(500).json({ error: "Failed to get compare list" });
+    console.error("Stack:", error instanceof Error ? error.stack : "no stack");
+    res.status(500).json({ error: "Failed to get compare list", details: error instanceof Error ? error.message : String(error) });
   }
 });
 
