@@ -2,8 +2,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { CompareItem } from "@shared/types";
-import ControlledModelView from "./ControlledModelView";
-import { saveAs } from "file-saver";
+import ControlledModelView, { ControlledModelViewRef } from "./ControlledModelView";
+import JSZip from "jszip";
 
 const MIN_COMPARE_SCALE = 1;
 const MAX_COMPARE_SCALE = 8;
@@ -19,7 +19,7 @@ function getProxyImageUrl(url: string): string {
   try {
     const urlObj = new URL(url);
     if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
-      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+      return `/ api / compare / proxy - image ? url = ${encodeURIComponent(url)} `;
     }
   } catch {
     // 忽略
@@ -267,12 +267,20 @@ function ImagePreviewModal({
   // 通过代理下载原始图并保存
   const handleSave = async () => {
     setSaving(true);
-    const fileName = `${itemName.replace(/[^\w\u4e00-\u9fa5]/g, "_") || "item"}_${Math.round(angle)}deg.png`;
+    const fileName = `${itemName.replace(/[^\w\u4e00-\u9fa5]/g, "_") || "item"}_${Math.round(angle)} deg.png`;
     try {
       const proxyUrl = getProxyImageUrl(imageUrl);
       const response = await fetch(proxyUrl);
       const blob = await response.blob();
-      saveAs(blob, fileName);
+      // 使用原生 <a> 标签下载
+      const dlUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = dlUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(dlUrl);
     } catch (error) {
       console.error("保存失败:", error);
       // 降级：在新标签页打开代理 URL
@@ -342,8 +350,8 @@ function ImagePreviewModal({
           <img
             src={previewUrl}
             alt={`${itemName} - ${Math.round(angle)}°`}
-            className={`block max-w-none transition-opacity duration-300 ${imageLoaded ? "opacity-100" : "opacity-0"
-              }`}
+            className={`block max - w - none transition - opacity duration - 300 ${imageLoaded ? "opacity-100" : "opacity-0"
+              } `}
             style={{ minWidth: "600px", minHeight: "600px" }}
             onLoad={() => setImageLoaded(true)}
             draggable={false}
@@ -366,8 +374,10 @@ export default function Compare3DPage() {
   const [globalPan, setGlobalPan] = useState({ x: 0, y: 0 });
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const itemRefsRef = useRef<Map<string, ControlledModelViewRef>>(new Map());
   // 预览弹窗状态
   const [previewItem, setPreviewItem] = useState<CompareItem | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   // 加载对比列表
   useEffect(() => {
@@ -474,6 +484,106 @@ export default function Compare3DPage() {
     [],
   );
 
+  // 导出所有物品的当前视图截图（Canvas drawImage 精准裁切）
+  const handleExportAll = useCallback(async () => {
+    if (items.length === 0) return;
+
+    setExporting(true);
+    try {
+      const zip = new JSZip();
+
+      for (const item of items) {
+        const itemRef = itemRefsRef.current.get(item.id);
+        const params = itemRef?.getExportParams();
+        if (!params) continue;
+
+        const { frameUrl, containerRect, effectiveScale, effectivePan } = params;
+
+        // 通过代理获取原始图片
+        const response = await fetch(frameUrl);
+        const blob = await response.blob();
+        const bitmap = await createImageBitmap(blob);
+        const imgW = bitmap.width;
+        const imgH = bitmap.height;
+
+        // 计算 object-contain 在容器中的显示尺寸
+        const containerW = containerRect.w;
+        const containerH = containerRect.h;
+        const scaleToFit = Math.min(containerW / imgW, containerH / imgH);
+        const displayW = imgW * scaleToFit;
+        const displayH = imgH * scaleToFit;
+
+        // 经过 scale 和 pan 变换后，图片在容器中的位置
+        // transform-origin 是 center，所以缩放以容器中心为基准
+        const scaledDisplayW = displayW * effectiveScale;
+        const scaledDisplayH = displayH * effectiveScale;
+        const imgLeft = (containerW - scaledDisplayW) / 2 + effectivePan.x;
+        const imgTop = (containerH - scaledDisplayH) / 2 + effectivePan.y;
+
+        // 容器可见窗口 [0, 0, containerW, containerH] 映射回图片坐标
+        const sx = Math.max(0, (0 - imgLeft) / scaledDisplayW * imgW);
+        const sy = Math.max(0, (0 - imgTop) / scaledDisplayH * imgH);
+        const visibleRight = Math.min(containerW, imgLeft + scaledDisplayW);
+        const visibleBottom = Math.min(containerH, imgTop + scaledDisplayH);
+        const visibleLeft = Math.max(0, imgLeft);
+        const visibleTop = Math.max(0, imgTop);
+        const sw = (visibleRight - visibleLeft) / scaledDisplayW * imgW;
+        const sh = (visibleBottom - visibleTop) / scaledDisplayH * imgH;
+
+        // 输出 Canvas 尺寸 = 容器可见区域大小 (2x 高清)
+        const outputScale = 2;
+        const canvasW = Math.round(containerW * outputScale);
+        const canvasH = Math.round(containerH * outputScale);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = canvasW;
+        canvas.height = canvasH;
+        const ctx = canvas.getContext('2d')!;
+
+        // 填充背景色（与容器一致的浅灰色）
+        ctx.fillStyle = '#e8ecf0';
+        ctx.fillRect(0, 0, canvasW, canvasH);
+
+        // 图片在 canvas 上的绘制位置
+        const drawX = Math.max(0, imgLeft) * outputScale;
+        const drawY = Math.max(0, imgTop) * outputScale;
+        const drawW = (visibleRight - visibleLeft) * outputScale;
+        const drawH = (visibleBottom - visibleTop) * outputScale;
+
+        if (sw > 0 && sh > 0 && drawW > 0 && drawH > 0) {
+          ctx.drawImage(bitmap, sx, sy, sw, sh, drawX, drawY, drawW, drawH);
+        }
+
+        bitmap.close();
+
+        const pngBlob = await new Promise<Blob>((resolve) => {
+          canvas.toBlob((b) => resolve(b!), 'image/png');
+        });
+
+        const prefix = item.serialNum || item.name.replace(/[^\w\u4e00-\u9fa5]/g, '_');
+        zip.file(`${prefix}_${Math.round(angle)}deg.png`, pngBlob);
+      }
+
+      const content = await zip.generateAsync({ type: 'blob' });
+      const fileName = `compare_${Math.round(angle)}deg_${Date.now()}.zip`;
+
+      // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
+      const url = URL.createObjectURL(content);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('导出失败:', error);
+      alert('导出失败，请重试');
+    } finally {
+      setExporting(false);
+    }
+  }, [items, angle]);
+
   // 物品少于2个时显示提示
   if (!loading && items.length < 2) {
     return (
@@ -579,23 +689,23 @@ export default function Compare3DPage() {
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
             {/* 缩放按钮 */}
-             <button
-               onClick={() => handleZoom('in')}
-               disabled={scale >= MAX_COMPARE_SCALE}
-               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-               title="放大"
-             >
+            <button
+              onClick={() => handleZoom('in')}
+              disabled={scale >= MAX_COMPARE_SCALE}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="放大"
+            >
               {Icons.zoomIn}
             </button>
             <div className="px-2 py-1 text-xs font-medium text-gray-500 min-w-[40px] text-center">
               {Math.round(scale * 100)}%
             </div>
-             <button
-               onClick={() => handleZoom('out')}
-               disabled={scale <= MIN_COMPARE_SCALE}
-               className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-               title="缩小"
-             >
+            <button
+              onClick={() => handleZoom('out')}
+              disabled={scale <= MIN_COMPARE_SCALE}
+              className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="缩小"
+            >
               {Icons.zoomOut}
             </button>
 
@@ -625,10 +735,10 @@ export default function Compare3DPage() {
               <button
                 onClick={() => setInteractionMode("rotate")}
                 disabled={isAutoRotating}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${interactionMode === "rotate"
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`flex items - center gap - 1.5 px - 3 py - 1.5 rounded - md text - sm font - medium transition - colors ${interactionMode === "rotate"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""} `}
                 title="左键拖拽旋转"
               >
                 {Icons.rotate}
@@ -637,10 +747,10 @@ export default function Compare3DPage() {
               <button
                 onClick={() => setInteractionMode("pan")}
                 disabled={isAutoRotating}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${interactionMode === "pan"
-                    ? "bg-white text-blue-600 shadow-sm"
-                    : "text-gray-500 hover:text-gray-700"
-                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""}`}
+                className={`flex items - center gap - 1.5 px - 3 py - 1.5 rounded - md text - sm font - medium transition - colors ${interactionMode === "pan"
+                  ? "bg-white text-blue-600 shadow-sm"
+                  : "text-gray-500 hover:text-gray-700"
+                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""} `}
                 title="左键拖拽平移"
               >
                 {Icons.hand}
@@ -689,13 +799,29 @@ export default function Compare3DPage() {
             {/* 自动旋转 */}
             <button
               onClick={toggleAutoRotate}
-              className={`px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium ${isAutoRotating
+              className={`px - 3 py - 2 rounded - lg transition - colors flex items - center gap - 1.5 text - sm font - medium ${isAutoRotating
                 ? "bg-blue-500 text-white"
                 : "bg-gray-100 hover:bg-gray-200 text-gray-600"
-                }`}
+                } `}
             >
               {isAutoRotating ? Icons.pause : Icons.play}
               {isAutoRotating ? "暂停" : "自动"}
+            </button>
+
+            <div className="w-px h-6 bg-gray-200 mx-2" />
+
+            <button
+              onClick={handleExportAll}
+              disabled={exporting || items.length === 0}
+              className="px-3 py-2 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium bg-emerald-500 hover:bg-emerald-600 text-white disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting ? (
+                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : Icons.download}
+              {exporting ? "导出中..." : "导出全部"}
             </button>
           </div>
         </div>
@@ -715,6 +841,13 @@ export default function Compare3DPage() {
                 style={{ width: "clamp(18rem, calc((100vw - 8rem) / 3), 24rem)" }}
               >
                 <ControlledModelView
+                  ref={(el) => {
+                    if (el) {
+                      itemRefsRef.current.set(item.id, el);
+                    } else {
+                      itemRefsRef.current.delete(item.id);
+                    }
+                  }}
                   captureUrls={item.captureUrls || []}
                   fallbackUrl={item.imageUrl}
                   name={item.name}

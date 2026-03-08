@@ -17,7 +17,7 @@ import authRouter from "./routes/auth";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3100;
 const NODE_ENV = process.env.NODE_ENV || "development";
 
 initializeDatabase();

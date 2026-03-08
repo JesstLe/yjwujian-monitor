@@ -75,7 +75,7 @@ pnpm dev
 ```
 
 - 前端默认：`http://localhost:5173`
-- 后端默认：`http://localhost:3000`
+- 后端默认：`http://localhost:3100`
 
 ## 常用命令
 

@@ -8,9 +8,11 @@ export default defineConfig({
   publicDir: 'public',
   server: {
     port: 5173,
+    host: true,
+    allowedHosts: ['.trycloudflare.com'],
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        target: 'http://localhost:3100',
         changeOrigin: true,
       },
     },

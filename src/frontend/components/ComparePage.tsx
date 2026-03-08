@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
-import { saveAs } from "file-saver";
 import JSZip from "jszip";
 import StarGridSlots from "./StarGridSlots";
 
@@ -359,13 +358,22 @@ export default function ComparePage() {
         await Promise.all(downloadPromises);
       }
 
-      // 生成 ZIP
+      // 生成 ZIP 并下载
       const content = await zip.generateAsync({ type: "blob" });
       const fileName =
         itemsWithCapture.length === 1
           ? `${itemsWithCapture[0].name.replace(/[^\w\u4e00-\u9fa5]/g, "_")}_3dframes.zip`
           : `compare_3dframes_selected.zip`;
-      saveAs(content, fileName);
+
+      // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
+      const url = URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     } catch (error) {
       console.error("导出 ZIP 失败:", error);
       alert("导出图片打包失败，请重试");
