@@ -234,16 +234,6 @@ const Icons = {
       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7" />
     </svg>
   ),
-  hand: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" />
-    </svg>
-  ),
-  rotate: (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-    </svg>
-  ),
 };
 
 /**
@@ -372,7 +362,6 @@ export default function Compare3DPage() {
   const [angle, setAngle] = useState(0);
   const [isAutoRotating, setIsAutoRotating] = useState(false);
   const [scale, setScale] = useState(1);
-  const [interactionMode, setInteractionMode] = useState<"rotate" | "pan">("rotate");
   const [resetCounter, setResetCounter] = useState(0);
   const [globalPan, setGlobalPan] = useState({ x: 0, y: 0 });
   const autoRotateRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -442,20 +431,6 @@ export default function Compare3DPage() {
     setScale(1);
     setGlobalPan({ x: 0, y: 0 });
     setResetCounter(prev => prev + 1);
-  }, []);
-
-  // 全局平移
-  const handlePan = useCallback((direction: 'up' | 'down' | 'left' | 'right') => {
-    const step = 20; // 每次平移 20 像素
-    setGlobalPan(prev => {
-      switch (direction) {
-        case 'up': return { ...prev, y: prev.y - step };
-        case 'down': return { ...prev, y: prev.y + step };
-        case 'left': return { ...prev, x: prev.x - step };
-        case 'right': return { ...prev, x: prev.x + step };
-        default: return prev;
-      }
-    });
   }, []);
 
   // 切换自动旋转
@@ -735,71 +710,7 @@ export default function Compare3DPage() {
               重置
             </button>
 
-            <div className="w-px h-6 bg-gray-200 mx-2" />
 
-            {/* 操作模式切换 */}
-            <div className="flex bg-gray-100 p-1 rounded-lg">
-              <button
-                onClick={() => setInteractionMode("rotate")}
-                disabled={isAutoRotating}
-                className={`flex items - center gap - 1.5 px - 3 py - 1.5 rounded - md text - sm font - medium transition - colors ${interactionMode === "rotate"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""} `}
-                title="左键拖拽旋转"
-              >
-                {Icons.rotate}
-                旋转
-              </button>
-              <button
-                onClick={() => setInteractionMode("pan")}
-                disabled={isAutoRotating}
-                className={`flex items - center gap - 1.5 px - 3 py - 1.5 rounded - md text - sm font - medium transition - colors ${interactionMode === "pan"
-                  ? "bg-white text-blue-600 shadow-sm"
-                  : "text-gray-500 hover:text-gray-700"
-                  } ${isAutoRotating ? "opacity-50 cursor-not-allowed" : ""} `}
-                title="左键拖拽平移"
-              >
-                {Icons.hand}
-                平移
-              </button>
-            </div>
-
-            <div className="w-px h-6 bg-gray-200 mx-2" />
-
-            {/* 平移方向按钮 - 十字形布局 */}
-            <div className="flex flex-col items-center gap-0.5">
-              <button
-                onClick={() => handlePan('up')}
-                className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                title="上移"
-              >
-                {Icons.up}
-              </button>
-              <div className="flex gap-1">
-                <button
-                  onClick={() => handlePan('left')}
-                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                  title="左移"
-                >
-                  {Icons.left}
-                </button>
-                <button
-                  onClick={() => handlePan('down')}
-                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                  title="下移"
-                >
-                  {Icons.down}
-                </button>
-                <button
-                  onClick={() => handlePan('right')}
-                  className="p-1.5 rounded bg-gray-100 hover:bg-gray-200 transition-colors"
-                  title="右移"
-                >
-                  {Icons.right}
-                </button>
-              </div>
-            </div>
 
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
@@ -862,7 +773,6 @@ export default function Compare3DPage() {
                   price={item.currentPrice}
                   angle={angle}
                   scale={scale}
-                  interactionMode={interactionMode}
                   resetCounter={resetCounter}
                   globalPan={globalPan}
                 />

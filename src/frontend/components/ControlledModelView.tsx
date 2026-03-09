@@ -177,7 +177,7 @@ export default forwardRef<ControlledModelViewRef, ControlledModelViewProps>(
           onAngleChange(angle + angleChange);
         }
       },
-      [isDragging, lastPos, onAngleChange, angle, interactionMode],
+      [isDragging, lastPos, onAngleChange, angle],
     );
 
     const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -284,30 +284,21 @@ export default forwardRef<ControlledModelViewRef, ControlledModelViewProps>(
 
           {/* 拖拽提示 */}
           {isDraggable && hasCapture && !isDragging && (
-            <div className="absolute bottom-2 left-2 flex items-center gap-1 px-2 py-1 rounded-md bg-black/50 text-xs text-white backdrop-blur-sm opacity-0 group-hover/view:opacity-100 transition-opacity">
+            <div className="absolute bottom-2 left-2 flex items-center gap-1.5 px-2 py-1.5 rounded-md bg-black/50 text-xs text-white backdrop-blur-sm opacity-0 group-hover/view:opacity-100 transition-opacity">
               <svg
                 className="w-3.5 h-3.5"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                {interactionMode === "rotate" ? (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                  />
-                ) : (
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"
-                  />
-                )}
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
               </svg>
-              <span>{interactionMode === "rotate" ? "拖拽旋转" : "拖拽平移"}</span>
+              <span>拖拽旋转 / Shift+拖拽 或 右键平移</span>
             </div>
           )}
         </div>
