@@ -73,8 +73,25 @@ export function initializeDatabase() {
   const schema = fs.readFileSync(schemaPath, "utf-8");
   db.exec(schema);
 
+  // 本地模式下自动创建默认用户，避免外键约束失败
+  ensureLocalUser();
+
   // Run migrations for existing databases
   runMigrations();
+}
+
+/**
+ * 确保本地模式的 dev-user 存在于 users 表中，
+ * 否则 watchlist/groups/alerts 等表的外键约束会失败。
+ */
+function ensureLocalUser() {
+  const LOCAL_MODE = process.env.LOCAL_MODE !== "false";
+  if (!LOCAL_MODE) return;
+
+  db.exec(`
+    INSERT OR IGNORE INTO users (id, email, username, password_hash, email_verified)
+    VALUES ('dev-user', 'local@localhost', '本地用户', '', 1)
+  `);
 }
 
 function runMigrations() {

@@ -143,7 +143,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
                     在售列表
                     <span className="text-sm font-normal text-gray-500 ml-2">
-                        共 {items.length}{hasMore ? '+' : ''} 件
+                        共 {hasMore ? '99+' : items.length} 件
                     </span>
                 </h2>
 

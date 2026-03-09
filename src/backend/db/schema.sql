@@ -115,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_items_last_checked ON items(last_checked_at);
 
 CREATE INDEX IF NOT EXISTS idx_watchlist_item ON watchlist(item_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_group ON watchlist(group_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_price_history_item ON price_history(item_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_time ON price_history(checked_at);

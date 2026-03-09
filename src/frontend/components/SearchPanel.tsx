@@ -100,9 +100,6 @@ export default function SearchPanel() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<ItemCategory>("hero_skin");
   const [rarity, setRarity] = useState<string>("");
-  const [seller, setSeller] = useState<string>("");
-  const [minPrice, setMinPrice] = useState<string>("");
-  const [maxPrice, setMaxPrice] = useState<string>("");
 
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(false);
@@ -152,9 +149,6 @@ export default function SearchPanel() {
         q: query || undefined,
         category,
         rarity: rarity || undefined,
-        seller: seller || undefined,
-        minPrice: minPrice ? Number(minPrice) : undefined,
-        maxPrice: maxPrice ? Number(maxPrice) : undefined,
         page,
         limit: 15,
       });
@@ -179,9 +173,6 @@ export default function SearchPanel() {
     query,
     category,
     rarity,
-    seller,
-    minPrice,
-    maxPrice,
     page,
     startRetryCountdown,
     clearRetryTimer,
@@ -208,7 +199,6 @@ export default function SearchPanel() {
     query,
     category,
     rarity,
-    seller,
   ]);
 
   const handleAddToWatchlist = useCallback(async (item: Item) => {
@@ -265,47 +255,6 @@ export default function SearchPanel() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-50">
-            <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider mb-4">
-              筛选详情
-            </h3>
-
-            <div className="space-y-4">
-              {/* Seller */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-2 ml-1">卖家名称</label>
-                <input
-                  type="text"
-                  placeholder="输入卖家名称..."
-                  value={seller}
-                  onChange={(e) => setSeller(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-                />
-              </div>
-
-              {/* Price */}
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 mb-2 ml-1">价格区间 (元)</label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    placeholder="最低"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-                  />
-                  <span className="text-gray-300">—</span>
-                  <input
-                    type="number"
-                    placeholder="最高"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
-                    className="w-full px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-transparent focus:bg-white transition-all"
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Rarity Filter */}
@@ -435,13 +384,11 @@ export default function SearchPanel() {
               尝试更换关键词或清除筛选条件
             </p>
             {(query ||
-              rarity ||
-              seller) && (
+              rarity) && (
                 <button
                   onClick={() => {
                     setQuery("");
                     setRarity("");
-                    setSeller("");
                   }}
                   className="mt-8 px-6 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 rounded-xl shadow-md shadow-blue-500/25 transition-all"
                 >
