@@ -275,12 +275,15 @@ function ImagePreviewModal({
       // 使用原生 <a> 标签下载
       const dlUrl = URL.createObjectURL(blob);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = dlUrl;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(dlUrl);
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(dlUrl);
+      }, 1000);
     } catch (error) {
       console.error("保存失败:", error);
       // 降级：在新标签页打开代理 URL
@@ -564,18 +567,22 @@ export default function Compare3DPage() {
         zip.file(`${prefix}_${Math.round(angle)}deg.png`, pngBlob);
       }
 
-      const content = await zip.generateAsync({ type: 'blob' });
+      const content = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
       const fileName = `compare_${Math.round(angle)}deg_${Date.now()}.zip`;
 
       // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
       const url = URL.createObjectURL(content);
       const a = document.createElement('a');
+      a.style.display = 'none';
       a.href = url;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
     } catch (error) {
       console.error('导出失败:', error);
       alert('导出失败，请重试');

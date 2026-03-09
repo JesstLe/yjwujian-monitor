@@ -31,6 +31,10 @@ export interface ControlledModelViewRef {
 // 将外部图片URL转换为代理URL
 function getProxyImageUrl(url: string | null | undefined): string | undefined {
   if (!url) return undefined;
+
+  // 修复带双斜杠的异常 URL (如 ...com//game/... -> ...com/game/...)
+  const cleanUrl = url.replace(/([^:])\/{2,}/g, "$1/");
+
   const proxyDomains = [
     "cbg-capture.res.netease.com",
     "cbg-yaots.res.netease.com",
@@ -38,14 +42,14 @@ function getProxyImageUrl(url: string | null | undefined): string | undefined {
     "game.gtimg.cn",
   ];
   try {
-    const urlObj = new URL(url);
+    const urlObj = new URL(cleanUrl);
     if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
-      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+      return `/api/compare/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
     }
   } catch {
     // URL解析失败，返回原URL
   }
-  return url;
+  return cleanUrl;
 }
 
 // 将角度转换为帧索引（32帧对应0-360度）

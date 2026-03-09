@@ -76,6 +76,10 @@ const getProxyImageUrl = (
   url: string | null | undefined,
 ): string | undefined => {
   if (!url) return undefined;
+
+  // 修复带双斜杠的异常 URL (如 ...com//game/... -> ...com/game/...)
+  const cleanUrl = url.replace(/([^:])\/{2,}/g, "$1/");
+
   // 检查是否是需要代理的域名
   const proxyDomains = [
     "cbg-capture.res.netease.com",
@@ -84,14 +88,14 @@ const getProxyImageUrl = (
     "game.gtimg.cn",
   ];
   try {
-    const urlObj = new URL(url);
+    const urlObj = new URL(cleanUrl);
     if (proxyDomains.some((domain) => urlObj.hostname.includes(domain))) {
-      return `/api/compare/proxy-image?url=${encodeURIComponent(url)}`;
+      return `/api/compare/proxy-image?url=${encodeURIComponent(cleanUrl)}`;
     }
   } catch {
     // URL解析失败，返回原URL
   }
-  return url;
+  return cleanUrl;
 };
 
 const CompareCard = ({
@@ -359,7 +363,7 @@ export default function ComparePage() {
       }
 
       // 生成 ZIP 并下载
-      const content = await zip.generateAsync({ type: "blob" });
+      const content = await zip.generateAsync({ type: "blob", mimeType: "application/zip" });
       const fileName =
         itemsWithCapture.length === 1
           ? `${itemsWithCapture[0].name.replace(/[^\w\u4e00-\u9fa5]/g, "_")}_3dframes.zip`
@@ -368,12 +372,17 @@ export default function ComparePage() {
       // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
       const url = URL.createObjectURL(content);
       const a = document.createElement("a");
+      a.style.display = "none";
       a.href = url;
       a.download = fileName;
       document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+
+      // 延迟释放 URL，防止部分浏览器打断下载导致文件名丢失或下载失败
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, 1000);
     } catch (error) {
       console.error("导出 ZIP 失败:", error);
       alert("导出图片打包失败，请重试");
