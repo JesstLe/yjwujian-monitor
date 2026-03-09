@@ -119,7 +119,7 @@ export default function BattleRecordsPage() {
               <div className="space-y-2">
                 <p className="text-sm text-gray-500">暂无结果，试试输入昵称后搜索。</p>
                 <p className="text-xs text-amber-600">
-                  将尝试实时同步公开战绩源；若仍无结果，可能是昵称不匹配或该玩家开启了隐私限制。
+                  将尝试通过小黑盒战绩接口实时同步；若仍无结果，可能是昵称不匹配或该玩家开启了隐私限制。
                 </p>
               </div>
             ) : (

@@ -17,9 +17,56 @@ function ensureDataDir() {
 
 ensureDataDir();
 
-export const db = new Database(DB_PATH);
+// 清理残留的 WAL/SHM 文件（防止跨平台同步导致的不一致）
+function cleanStaleWalFiles() {
+  const walPath = DB_PATH + "-wal";
+  const shmPath = DB_PATH + "-shm";
+  // 如果数据库文件不存在但 WAL/SHM 存在，说明是残留文件
+  if (!fs.existsSync(DB_PATH)) {
+    if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
+    if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
+  }
+}
 
-db.pragma("journal_mode = WAL");
+// 启动时完整性检查，损坏则自动备份并重建
+function openDatabaseSafe(): InstanceType<typeof Database> {
+  cleanStaleWalFiles();
+
+  try {
+    const database = new Database(DB_PATH);
+    database.pragma("journal_mode = WAL");
+
+    // 执行完整性检查
+    const result = database.pragma("integrity_check") as { integrity_check: string }[];
+    if (result[0]?.integrity_check !== "ok") {
+      throw new Error(`Integrity check failed: ${result[0]?.integrity_check}`);
+    }
+
+    return database;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`Database corrupted or unreadable: ${message}`);
+    console.error("Backing up corrupted database and creating a fresh one...");
+
+    // 备份损坏的文件
+    const backupSuffix = `.corrupted.${Date.now()}`;
+    const filesToBackup = [DB_PATH, DB_PATH + "-wal", DB_PATH + "-shm"];
+    for (const file of filesToBackup) {
+      if (fs.existsSync(file)) {
+        fs.renameSync(file, file + backupSuffix);
+        console.log(`Backed up: ${file} -> ${file}${backupSuffix}`);
+      }
+    }
+
+    // 创建全新的数据库
+    const freshDb = new Database(DB_PATH);
+    freshDb.pragma("journal_mode = WAL");
+    console.log("Fresh database created successfully.");
+    return freshDb;
+  }
+}
+
+export const db = openDatabaseSafe();
 
 export function initializeDatabase() {
   const schemaPath = path.join(__dirname, "schema.sql");

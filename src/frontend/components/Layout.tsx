@@ -190,7 +190,6 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { to: "/", label: "仪表盘", icon: Icons.dashboard },
     { to: "/search", label: "搜索", icon: Icons.search },
     { to: "/watchlist", label: "监控列表", icon: Icons.watchlist },
-    { to: "/battle-records", label: "战绩助手", icon: Icons.battleRecords },
     { to: "/compare", label: "对比", icon: Icons.compare },
     { to: "/settings", label: "设置", icon: Icons.settings },
   ];
@@ -207,7 +206,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
                   永劫无间
                 </h1>
                 <span className="text-[10px] text-blue-600 font-medium tracking-wider uppercase">
-                  藏宝阁监控
+                  藏宝阁助手
                 </span>
               </div>
             </div>

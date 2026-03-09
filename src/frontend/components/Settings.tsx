@@ -318,8 +318,8 @@ export default function Settings() {
               onClick={() => handleMonitorAction(monitorStatus?.running ? "stop" : "start")}
               disabled={actionLoading !== null}
               className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors ${monitorStatus?.running
-                  ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
-                  : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
+                ? "bg-red-50 text-red-600 border-red-200 hover:bg-red-100"
+                : "bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100"
                 }`}
             >
               {actionLoading !== null ? (
@@ -346,9 +346,6 @@ export default function Settings() {
                 </span>
               </div>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              本系统已升级为多终端多用户架构，爬虫监控端在全球范围内常驻执行，保障您的高稀有度网易藏宝阁商品获得无缝追踪。如需临时释放本机性能，可手动暂停。
-            </p>
           </div>
         </div>
 
@@ -494,14 +491,6 @@ export default function Settings() {
             关于
           </h3>
           <div className="text-sm text-gray-500 space-y-2">
-            <p className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-              永劫无间藏宝阁监控系统 v1.0.0
-            </p>
-            <p className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
-              数据来源: 网易藏宝阁官方API
-            </p>
             <p className="text-xs text-gray-500 mt-3 p-3 rounded-xl bg-gray-50 border border-gray-200">
               注意: 本工具仅供个人使用，请勿过度请求API
             </p>

@@ -16,16 +16,20 @@ declare global {
 }
 
 /**
+ * 本地模式：默认启用，无需登录即可使用所有功能。
+ * 设置环境变量 LOCAL_MODE=false 可切换为云端登录模式（需配合云同步服务）。
+ */
+const LOCAL_MODE = process.env.LOCAL_MODE !== "false";
+
+/**
  * Require authentication - validates JWT token
  */
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
-  // DEV MODE: 完全禁用登录验证
-  const DISABLE_AUTH = process.env.NODE_ENV === "development" || true;
-
-  if (DISABLE_AUTH) {
+  // 本地模式：跳过登录验证，注入默认本地用户
+  if (LOCAL_MODE) {
     req.user = {
       id: "dev-user",
-      email: "dev@example.com",
+      email: "local@localhost",
       emailVerified: true,
     };
     return next();

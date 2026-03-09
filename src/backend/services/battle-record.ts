@@ -26,10 +26,28 @@ type ExternalPlayer = {
   profileHidden: boolean;
 };
 
+const BATTLE_PROVIDER = process.env.BATTLE_PROVIDER || "xiaoheihe";
 const REAL_SOURCE_BASE_URL =
   process.env.BATTLE_REAL_SOURCE_BASE_URL || "https://gamedb.gamersky.com";
 const REAL_SOURCE_SERVER = process.env.BATTLE_REAL_SOURCE_SERVER || "163";
 const REAL_SYNC_TTL_MS = Number(process.env.BATTLE_REAL_SYNC_TTL_MS || 5 * 60 * 1000);
+const XIAOHEIHE_BASE_URL =
+  process.env.BATTLE_XIAOHEIHE_BASE_URL || "https://api.xiaoheihe.cn";
+const XIAOHEIHE_COOKIE = process.env.BATTLE_XIAOHEIHE_COOKIE || "";
+const XIAOHEIHE_HEYBOX_ID = process.env.BATTLE_XIAOHEIHE_HEYBOX_ID || "1057809";
+const XIAOHEIHE_BATTLE_TID = process.env.BATTLE_XIAOHEIHE_BATTLE_TID || "5000001";
+const XIAOHEIHE_SEASON = process.env.BATTLE_XIAOHEIHE_SEASON || "pre-01";
+
+const MODE_LABEL_MAP: Record<string, string> = {
+  "4": "天人之战-单排",
+  "5": "天人之战-三排",
+  "6": "快速匹配-单排",
+  "7": "快速匹配-三排",
+  "12": "天选之人-双排",
+  "5000000": "天选之人-单排",
+  "5000001": "天选之人-三排",
+  "5000010": "无尽试炼",
+};
 
 type BattlePlayerRow = {
   id: string;
@@ -141,6 +159,103 @@ const HERO_POOL = [
 const MODE_POOL = ["天选单排", "天选三排", "匹配单排", "匹配三排"];
 
 class BattleRecordService {
+  private getProviderHeaders() {
+    const headers: Record<string, string> = {
+      "User-Agent":
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+    };
+
+    if (BATTLE_PROVIDER === "xiaoheihe" && XIAOHEIHE_COOKIE) {
+      headers.Cookie = XIAOHEIHE_COOKIE;
+    }
+
+    return headers;
+  }
+
+  private normalizeMode(raw: Record<string, unknown>): string {
+    const modeText =
+      (typeof raw.battleMode === "string" && raw.battleMode) ||
+      (typeof raw.mode === "string" && raw.mode) ||
+      "";
+    if (modeText) {
+      return modeText;
+    }
+
+    const modeId =
+      (typeof raw.battle_tid === "number" && String(raw.battle_tid)) ||
+      (typeof raw.battle_tid === "string" && raw.battle_tid) ||
+      (typeof raw.modeId === "string" && raw.modeId) ||
+      "";
+
+    return MODE_LABEL_MAP[modeId] || (modeId ? `模式-${modeId}` : "未知模式");
+  }
+
+  private extractPlayerList(payload: Record<string, unknown>): Record<string, unknown>[] {
+    const out: Record<string, unknown>[] = [];
+    const data = payload.data;
+    const result = payload.result;
+
+    if (data && typeof data === "object") {
+      const dataObj = data as Record<string, unknown>;
+      if (Array.isArray(dataObj.list)) {
+        out.push(
+          ...(dataObj.list.filter((item) => item && typeof item === "object") as Record<
+            string,
+            unknown
+          >[]),
+        );
+      }
+      if (Array.isArray(dataObj.userList)) {
+        out.push(
+          ...(dataObj.userList.filter((item) => item && typeof item === "object") as Record<
+            string,
+            unknown
+          >[]),
+        );
+      }
+    }
+
+    if (result && typeof result === "object") {
+      const resultObj = result as Record<string, unknown>;
+      if (Array.isArray(resultObj.user_list)) {
+        out.push(
+          ...(resultObj.user_list.filter((item) => item && typeof item === "object") as Record<
+            string,
+            unknown
+          >[]),
+        );
+      }
+    }
+
+    return out;
+  }
+
+  private extractMatchesList(payload: Record<string, unknown>): Record<string, unknown>[] {
+    const data = payload.data;
+    if (data && typeof data === "object") {
+      const dataObj = data as Record<string, unknown>;
+      if (Array.isArray(dataObj.list)) {
+        return dataObj.list.filter((item) => item && typeof item === "object") as Record<
+          string,
+          unknown
+        >[];
+      }
+    }
+
+    const result = payload.result;
+    if (result && typeof result === "object") {
+      const resultObj = result as Record<string, unknown>;
+      if (Array.isArray(resultObj.matches)) {
+        return resultObj.matches.filter((item) => item && typeof item === "object") as Record<
+          string,
+          unknown
+        >[];
+      }
+    }
+
+    return [];
+  }
+
   private resolvePlayedAt(raw: Record<string, unknown>, fallbackIndex: number): string {
     const candidateKeys = [
       "start_ts",
@@ -191,50 +306,32 @@ class BattleRecordService {
     }
 
     const maybeObj = payload as Record<string, unknown>;
-    const data = maybeObj.data;
-    const candidates: Record<string, unknown>[] = [];
-
-    if (data && typeof data === "object") {
-      const dataObj = data as Record<string, unknown>;
-      if (Array.isArray(dataObj.list)) {
-        candidates.push(
-          ...(dataObj.list.filter((item) => item && typeof item === "object") as Record<
-            string,
-            unknown
-          >[]),
-        );
-      }
-      if (Array.isArray(dataObj.userList)) {
-        candidates.push(
-          ...(dataObj.userList.filter((item) => item && typeof item === "object") as Record<
-            string,
-            unknown
-          >[]),
-        );
-      }
-      if (
-        typeof dataObj.roleId === "string" &&
-        (typeof dataObj.roleName === "string" || typeof dataObj.role_name === "string")
-      ) {
-        candidates.push(dataObj);
-      }
-    }
+    const candidates = this.extractPlayerList(maybeObj);
 
     const mapped = candidates
       .map((item) => {
+        const roleIdRaw = item.roleId ?? item.role_id;
         const roleId =
-          (typeof item.roleId === "string" && item.roleId) ||
-          (typeof item.role_id === "string" && item.role_id) ||
-          "";
+          typeof roleIdRaw === "string"
+            ? roleIdRaw
+            : typeof roleIdRaw === "number"
+              ? String(roleIdRaw)
+              : "";
         const roleName =
           (typeof item.roleName === "string" && item.roleName) ||
           (typeof item.role_name === "string" && item.role_name) ||
           "";
+        const hiddenRaw =
+          item.profile_hidden ??
+          item.profileHidden ??
+          item.hidden ??
+          item.record_hidden ??
+          0;
         const hidden =
-          item.profile_hidden === 1 ||
-          item.profileHidden === true ||
-          item.hidden === 1 ||
-          item.hidden === true;
+          hiddenRaw === 1 ||
+          hiddenRaw === true ||
+          hiddenRaw === "1" ||
+          hiddenRaw === "true";
 
         if (!roleId || !roleName) {
           return null;
@@ -258,14 +355,18 @@ class BattleRecordService {
     });
   }
 
-  private upsertExternalPlayer(player: ExternalPlayer, rawProfile: unknown): BattlePlayer {
+  private upsertExternalPlayer(
+    player: ExternalPlayer,
+    rawProfile: unknown,
+    source: string,
+  ): BattlePlayer {
     db.prepare(
       `INSERT INTO battle_players (id, role_name, server, source, profile_hidden, raw_profile, last_synced_at, updated_at)
-       VALUES (?, ?, ?, 'gamedb', ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+       VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
        ON CONFLICT(id) DO UPDATE SET
          role_name = excluded.role_name,
          server = excluded.server,
-         source = 'gamedb',
+         source = excluded.source,
          profile_hidden = excluded.profile_hidden,
          raw_profile = excluded.raw_profile,
          last_synced_at = CURRENT_TIMESTAMP,
@@ -274,8 +375,15 @@ class BattleRecordService {
       player.roleId,
       player.roleName,
       REAL_SOURCE_SERVER,
+      source,
       player.profileHidden ? 1 : 0,
-      JSON.stringify(rawProfile),
+      JSON.stringify({
+        provider: source,
+        roleId: player.roleId,
+        roleName: player.roleName,
+        fetchedAt: new Date().toISOString(),
+        hasPayload: Boolean(rawProfile),
+      }),
     );
 
     const row = db
@@ -294,53 +402,89 @@ class BattleRecordService {
       return [];
     }
 
-    const response = await axios.get(`${REAL_SOURCE_BASE_URL}/yjwujian/search/getSearchResult`, {
-      params: {
-        serverId: REAL_SOURCE_SERVER,
-        roleName: q,
-      },
-      timeout: 12000,
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
-      },
-    });
+    let response;
+    let source = "unknown";
+
+    if (BATTLE_PROVIDER === "xiaoheihe") {
+      response = await axios.post(
+        `${XIAOHEIHE_BASE_URL}/game/yjwj/search`,
+        undefined,
+        {
+          params: {
+            q,
+          },
+          timeout: 12000,
+          headers: this.getProviderHeaders(),
+        },
+      );
+      source = "xiaoheihe";
+    } else {
+      response = await axios.get(`${REAL_SOURCE_BASE_URL}/yjwujian/search/getSearchResult`, {
+        params: {
+          serverId: REAL_SOURCE_SERVER,
+          roleName: q,
+        },
+        timeout: 12000,
+        headers: this.getProviderHeaders(),
+      });
+      source = "gamedb";
+    }
 
     const players = this.parseExternalPlayers(response.data);
     if (players.length === 0) {
       return [];
     }
 
-    return players.map((item) => this.upsertExternalPlayer(item, response.data));
+    return players.map((item) => this.upsertExternalPlayer(item, response.data, source));
   }
 
   async syncRecentMatches(playerId: string, pageSize: number = 50): Promise<number> {
-    const response = await axios.get(
-      `${REAL_SOURCE_BASE_URL}/yjwujian/record/getRecentRecords`,
-      {
+    let response;
+    let source = "unknown";
+
+    if (BATTLE_PROVIDER === "xiaoheihe") {
+      try {
+        await axios.post(`${XIAOHEIHE_BASE_URL}/game/yjwj/update`, undefined, {
+          params: {
+            server: REAL_SOURCE_SERVER,
+            role_id: playerId,
+          },
+          timeout: 10000,
+          headers: this.getProviderHeaders(),
+        });
+      } catch {
+      }
+
+      response = await axios.post(`${XIAOHEIHE_BASE_URL}/game/yjwj/home/data`, undefined, {
         params: {
-          roleId: playerId,
-          pageIndex: 1,
-          pageSize,
+          battle_tid: XIAOHEIHE_BATTLE_TID,
+          season: XIAOHEIHE_SEASON,
+          server: REAL_SOURCE_SERVER,
+          role_id: playerId,
+          heybox_id: XIAOHEIHE_HEYBOX_ID,
         },
         timeout: 12000,
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+        headers: this.getProviderHeaders(),
+      });
+      source = "xiaoheihe";
+    } else {
+      response = await axios.get(
+        `${REAL_SOURCE_BASE_URL}/yjwujian/record/getRecentRecords`,
+        {
+          params: {
+            roleId: playerId,
+            pageIndex: 1,
+            pageSize,
+          },
+          timeout: 12000,
+          headers: this.getProviderHeaders(),
         },
-      },
-    );
+      );
+      source = "gamedb";
+    }
 
     const payload = response.data as Record<string, unknown>;
-    const data = payload?.data;
-    if (!data || typeof data !== "object") {
-      return 0;
-    }
-
-    const list = (data as Record<string, unknown>).list;
-    if (!Array.isArray(list)) {
-      return 0;
-    }
+    const list = this.extractMatchesList(payload);
 
     const insertStmt = db.prepare(
       `INSERT OR IGNORE INTO battle_history (
@@ -356,19 +500,25 @@ class BattleRecordService {
       }
       const row = entry as Record<string, unknown>;
 
+      const mode = this.normalizeMode(row);
+      const tsCandidate = Number(
+        row.time ?? row.start_ts ?? row.startTs ?? row.start_time ?? row.end_ts ?? 0,
+      );
+      const stableTs = Number.isFinite(tsCandidate) && tsCandidate > 0 ? tsCandidate : 0;
+      const modeKey = String(row.battle_tid ?? row.modeId ?? mode);
+
       const matchId =
         (typeof row.roomId === "string" && row.roomId) ||
+        (typeof row.roomId === "number" && String(row.roomId)) ||
         (typeof row.room_id === "string" && row.room_id) ||
+        (typeof row.room_id === "number" && String(row.room_id)) ||
         (typeof row.matchId === "string" && row.matchId) ||
-        `${playerId}-external-${idx}`;
-
-      const mode =
-        (typeof row.battleMode === "string" && row.battleMode) ||
-        (typeof row.mode === "string" && row.mode) ||
-        "未知模式";
+        (typeof row.matchId === "number" && String(row.matchId)) ||
+        `${playerId}-${modeKey}-${stableTs}-${idx}`;
       const hero =
         (typeof row.hero === "string" && row.hero) ||
         (typeof row.heroName === "string" && row.heroName) ||
+        (typeof row.hero_id === "string" && row.hero_id) ||
         "未知英雄";
 
       const rank = Number(row.rank ?? 0) || 0;
@@ -395,9 +545,9 @@ class BattleRecordService {
 
     db.prepare(
       `UPDATE battle_players
-       SET source = 'gamedb', last_synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+       SET source = ?, last_synced_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
        WHERE id = ?`,
-    ).run(playerId);
+    ).run(source, playerId);
 
     return inserted;
   }
@@ -559,7 +709,11 @@ class BattleRecordService {
     try {
       await this.syncPlayerFromRealSourceByName(q);
       return this.searchPlayers(query, page, limit);
-    } catch {
+    } catch (error) {
+      if (localResult.total === 0) {
+        const detail = error instanceof Error ? error.message : "未知错误";
+        throw new Error(`小黑盒战绩源请求失败: ${detail}`);
+      }
       return localResult;
     }
   }

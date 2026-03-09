@@ -188,10 +188,7 @@ router.get("/search", async (req, res) => {
       // Client-side keyword filter if API didn't handle it well (optional safety)
       // if (q) { ... }
     } catch (cbgError) {
-      upstreamError =
-        cbgError instanceof Error
-          ? cbgError.message
-          : "CBG upstream request failed";
+      upstreamError = "数据源暂时不可用，请30秒后重试";
 
       const cacheCategory = (category as string) || "hero_skin";
       const offset = (Number(page) - 1) * Number(limit);
