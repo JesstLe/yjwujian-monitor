@@ -4,10 +4,10 @@
   "description": "永劫无间藏宝阁价格监控系统",
   "type": "module",
   "scripts": {
-    "dev": "concurrently \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:backend": "tsx watch src/backend/index.ts",
     "dev:frontend": "vite",
-    "build": "pnpm build:frontend",
+    "build": "npm run build:frontend",
     "build:frontend": "vite build",
     "preview": "vite preview",
     "start": "tsx src/backend/index.ts",
