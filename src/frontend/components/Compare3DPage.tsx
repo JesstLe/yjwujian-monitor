@@ -694,7 +694,7 @@ export default function Compare3DPage() {
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
             {/* 角度显示 */}
-            <div className="px-4 py-2 bg-blue-50 rounded-lg border border-blue-100 min-w-[80px] text-center">
+            <div className="h-10 px-4 bg-blue-50 rounded-lg border border-blue-100 min-w-[80px] flex items-center justify-center">
               <span className="text-sm font-bold text-blue-600">
                 {currentFrameAngle}°
               </span>
@@ -704,23 +704,21 @@ export default function Compare3DPage() {
             <button
               onClick={handleReset}
               disabled={isAutoRotating}
-              className="px-3 py-2 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 text-sm font-medium text-gray-600"
+              className="h-10 px-4 rounded-lg bg-gray-100 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5 text-sm font-medium text-gray-600"
             >
               {Icons.reset}
               重置
             </button>
-
-
 
             <div className="w-px h-6 bg-gray-200 mx-2" />
 
             {/* 自动旋转 */}
             <button
               onClick={toggleAutoRotate}
-              className={`px - 3 py - 2 rounded - lg transition - colors flex items - center gap - 1.5 text - sm font - medium ${isAutoRotating
+              className={`h-10 px-4 rounded-lg transition-colors flex items-center gap-1.5 text-sm font-medium ${isAutoRotating
                 ? "bg-blue-500 text-white"
                 : "bg-gray-100 hover:bg-gray-200 text-gray-600"
-                } `}
+                }`}
             >
               {isAutoRotating ? Icons.pause : Icons.play}
               {isAutoRotating ? "暂停" : "自动"}
