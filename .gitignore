@@ -14,6 +14,10 @@ data/*.db
 data/*.db-journal
 data/*.db-wal
 data/*.db-shm
+data/license.json
+
+# License private key (绝密！不要提交！)
+keys/private.pem
 
 # IDE
 .idea/

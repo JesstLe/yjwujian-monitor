@@ -15,6 +15,7 @@ import monitorRouter from "./routes/monitor";
 import compareRouter from "./routes/compare";
 import authRouter from "./routes/auth";
 import battleRecordsRouter from "./routes/battle-records";
+import licenseRouter from "./routes/license";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -38,6 +39,7 @@ app.use("/api/monitor", monitorRouter);
 app.use("/api/compare", compareRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/battle-records", battleRecordsRouter);
+app.use("/api/license", licenseRouter);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });

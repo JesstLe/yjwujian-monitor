@@ -114,6 +114,7 @@ export const api = {
         targetValue?: number;
         minValue?: number;
         maxValue?: number;
+        seller?: string;
       },
     ) => {
       const {
@@ -125,6 +126,7 @@ export const api = {
         targetValue,
         minValue,
         maxValue,
+        seller,
       } = params || {};
       const queryParams = new URLSearchParams();
       if (searchType) queryParams.append("searchType", searchType);
@@ -145,6 +147,7 @@ export const api = {
         queryParams.append("minValue", String(minValue));
       if (maxValue !== undefined)
         queryParams.append("maxValue", String(maxValue));
+      if (seller) queryParams.append("seller", seller);
       return fetchApiWithMeta<Item[]>(
         `/items/type/${id}/listings?${queryParams}`,
       );

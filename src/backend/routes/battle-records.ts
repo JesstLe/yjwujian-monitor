@@ -53,7 +53,10 @@ router.get("/search", async (req, res) => {
     res.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "搜索失败";
-    res.status(400).json({ success: false, error: message });
+    const isProviderError = message.includes("战绩源") || message.includes("ECONN") || message.includes("timeout");
+    res
+      .status(isProviderError ? 502 : 400)
+      .json({ success: false, error: isProviderError ? "战绩数据源暂时不可用，请稍后重试" : message });
   }
 });
 
@@ -90,10 +93,22 @@ router.get("/player/:id/matches", async (req, res) => {
         .json({ success: false, error: "该玩家已开启战绩隐藏" });
     }
 
-    await battleRecordService.refreshPlayerMatchesIfStale(req.params.id);
+    let refreshError: Error | null = null;
+    try {
+      await battleRecordService.refreshPlayerMatchesIfStale(req.params.id);
+    } catch (error) {
+      refreshError = error instanceof Error ? error : new Error("战绩源刷新失败");
+    }
 
     const { page, limit } = matchPageSchema.parse(req.query);
     const result = battleRecordService.getMatches(req.params.id, page, limit);
+
+    if (refreshError && result.total === 0) {
+      return res
+        .status(502)
+        .json({ success: false, error: "战绩数据源暂时不可用，请稍后重试" });
+    }
+
     const pageCount = Math.max(1, Math.ceil(result.total / limit));
 
     const response: ApiResponse<BattleMatch[]> = {
@@ -111,7 +126,10 @@ router.get("/player/:id/matches", async (req, res) => {
     res.json(response);
   } catch (error) {
     const message = error instanceof Error ? error.message : "获取战绩失败";
-    res.status(500).json({ success: false, error: message });
+    const isProviderError = message.includes("战绩源") || message.includes("ECONN") || message.includes("timeout");
+    res
+      .status(isProviderError ? 502 : 500)
+      .json({ success: false, error: isProviderError ? "战绩数据源暂时不可用，请稍后重试" : message });
   }
 });
 

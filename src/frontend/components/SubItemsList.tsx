@@ -31,6 +31,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
     const [targetValue, setTargetValue] = useState<string>('');
     const [minValue, setMinValue] = useState<string>('');
     const [maxValue, setMaxValue] = useState<string>('');
+    const [sellerName, setSellerName] = useState<string>('');
 
     const handleItemClick = (item: Item) => {
         setSelectedItem(item);
@@ -53,13 +54,14 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
         try {
             const result = await api.items.getListings(equipType, {
                 searchType,
-                page: isLoadMore ? page : 1, // Use current page state for load more, or reset to 1
+                page: isLoadMore ? page : 1,
                 sort,
                 variationUnlockLevel: variationUnlockLevel ? Number(variationUnlockLevel) : undefined,
                 slotIndex: slotIndex ? Number(slotIndex) : undefined,
                 targetValue: targetValue ? Number(targetValue) : undefined,
                 minValue: minValue ? Number(minValue) : undefined,
                 maxValue: maxValue ? Number(maxValue) : undefined,
+                seller: sellerName || undefined,
             });
 
             if (isLoadMore) {
@@ -141,7 +143,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                     <span className="w-1 h-6 bg-cyan-500 rounded-full"></span>
                     在售列表
                     <span className="text-sm font-normal text-gray-500 ml-2">
-                        共 {items.length}{hasMore ? '+' : ''} 件
+                        共 {hasMore ? '99+' : items.length} 件
                     </span>
                 </h2>
 
@@ -212,6 +214,14 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                             className="w-20 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 shadow-sm"
                         />
 
+                        <input
+                            type="text"
+                            value={sellerName}
+                            onChange={(e) => setSellerName(e.target.value)}
+                            placeholder="卖家名"
+                            className="w-28 px-2.5 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm placeholder-gray-400 focus:outline-none focus:border-cyan-500/50 shadow-sm"
+                        />
+
                         <button
                             onClick={() => {
                                 setSlotIndex('');
@@ -219,6 +229,7 @@ export default function SubItemsList({ equipType, searchType, className = '' }: 
                                 setTargetValue('');
                                 setMinValue('');
                                 setMaxValue('');
+                                setSellerName('');
                             }}
                             className="px-3 py-2 text-sm text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-lg border border-gray-200 transition-colors shadow-sm bg-white"
                         >

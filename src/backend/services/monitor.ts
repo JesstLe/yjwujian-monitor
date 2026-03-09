@@ -118,7 +118,7 @@ async function runMonitorPass(): Promise<number> {
     const checkedCount = await checkItemsWithConcurrency(
       watchlistItems.map(({ item_id }) => item_id),
     );
-    checkAndTriggerAlerts();
+    await checkAndTriggerAlerts();
 
     return checkedCount;
   })();

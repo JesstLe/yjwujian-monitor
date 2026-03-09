@@ -1,6 +1,25 @@
 -- Enable foreign keys
 PRAGMA foreign_keys = ON;
 
+-- ============================================
+-- User Authentication Tables
+-- ============================================
+
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  username TEXT,
+  avatar_url TEXT,
+  email_verified INTEGER DEFAULT 0,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+
+
 -- Items table: Cached item information from CBG
 CREATE TABLE IF NOT EXISTS items (
   id TEXT PRIMARY KEY,
@@ -96,6 +115,7 @@ CREATE INDEX IF NOT EXISTS idx_items_last_checked ON items(last_checked_at);
 
 CREATE INDEX IF NOT EXISTS idx_watchlist_item ON watchlist(item_id);
 CREATE INDEX IF NOT EXISTS idx_watchlist_group ON watchlist(group_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);
 
 CREATE INDEX IF NOT EXISTS idx_price_history_item ON price_history(item_id);
 CREATE INDEX IF NOT EXISTS idx_price_history_time ON price_history(checked_at);
@@ -167,23 +187,7 @@ CREATE INDEX IF NOT EXISTS idx_battle_history_played ON battle_history(played_at
 CREATE INDEX IF NOT EXISTS idx_player_watchlist_user ON player_watchlist(user_id);
 CREATE INDEX IF NOT EXISTS idx_player_watchlist_player ON player_watchlist(player_id);
 
--- ============================================
--- User Authentication Tables
--- ============================================
 
--- Users table
-CREATE TABLE IF NOT EXISTS users (
-  id TEXT PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  username TEXT,
-  avatar_url TEXT,
-  email_verified INTEGER DEFAULT 0,
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 
 -- Login attempts for rate limiting
 CREATE TABLE IF NOT EXISTS login_attempts (

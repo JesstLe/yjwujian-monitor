@@ -12,7 +12,7 @@ interface WatchlistRow {
   user_id: string;
 }
 
-export function checkAndTriggerAlerts(): Alert[] {
+export async function checkAndTriggerAlerts(): Promise<Alert[]> {
   const watchlistItems = db
     .prepare(`
       SELECT 
@@ -55,58 +55,59 @@ export function checkAndTriggerAlerts(): Alert[] {
     (item) => !unresolvedSet.has(item.watchlist_id),
   );
 
-  const insertAlertStmt = db.prepare(`
-    INSERT OR IGNORE INTO alerts (watchlist_id, item_id, triggered_price, target_price)
-    VALUES (?, ?, ?, ?)
-    RETURNING *
-  `);
+  if (toInsert.length === 0) {
+    return newAlerts;
+  }
 
-  const insertMany = db.transaction((items: WatchlistRow[]) => {
-    for (const item of items) {
-      const result = insertAlertStmt.get(
-        item.watchlist_id,
-        item.item_id,
-        item.item_current_price,
-        item.target_price,
-      ) as
-        | {
-          id: number;
-          watchlist_id: number;
-          item_id: string;
-          triggered_price: number;
-          target_price: number;
-          triggered_at: string;
-          is_read: number;
-          is_resolved: number;
-        }
-        | undefined;
+  const batchPlaceholders = toInsert.map(() => "(?, ?, ?, ?)").join(", ");
+  const values = toInsert.flatMap((item) => [
+    item.watchlist_id,
+    item.item_id,
+    item.item_current_price,
+    item.target_price,
+  ]);
 
-      if (!result) {
-        continue;
-      }
+  const insertedRows = db
+    .prepare(
+      `INSERT OR IGNORE INTO alerts (watchlist_id, item_id, triggered_price, target_price)
+       VALUES ${batchPlaceholders}
+       RETURNING *`,
+    )
+    .all(...values) as {
+      id: number;
+      watchlist_id: number;
+      item_id: string;
+      triggered_price: number;
+      target_price: number;
+      triggered_at: string;
+      is_read: number;
+      is_resolved: number;
+    }[];
 
-      const alert: Alert = {
-        id: result.id,
-        watchlistId: result.watchlist_id,
-        itemId: result.item_id,
-        triggeredPrice: result.triggered_price,
-        targetPrice: result.target_price,
-        triggeredAt: new Date(result.triggered_at),
-        isRead: result.is_read === 1,
-        isResolved: result.is_resolved === 1,
-      };
+  // Build alert objects
+  for (const row of insertedRows) {
+    const alert: Alert = {
+      id: row.id,
+      watchlistId: row.watchlist_id,
+      itemId: row.item_id,
+      triggeredPrice: row.triggered_price,
+      targetPrice: row.target_price,
+      triggeredAt: new Date(row.triggered_at),
+      isRead: row.is_read === 1,
+      isResolved: row.is_resolved === 1,
+    };
+    newAlerts.push(alert);
+  }
 
-      newAlerts.push(alert);
-
-      sendNotification(item.user_id, {
-        title: '价格提醒',
-        body: `${item.item_name} 已降至 ¥${(item.item_current_price / 100).toFixed(2)}，低于目标价 ¥${(item.target_price / 100).toFixed(2)}`,
-        data: { alertId: alert.id, itemId: item.item_id },
-      });
-    }
-  });
-
-  insertMany(toInsert);
+  // Send notifications in parallel
+  const notificationPromises = toInsert.map((item) =>
+    sendNotification(item.user_id, {
+      title: '价格提醒',
+      body: `${item.item_name} 已降至 ¥${(item.item_current_price / 100).toFixed(2)}，低于目标价 ¥${(item.target_price / 100).toFixed(2)}`,
+      data: { alertId: item.watchlist_id, itemId: item.item_id },
+    }),
+  );
+  await Promise.all(notificationPromises);
 
   return newAlerts;
 }

@@ -14,6 +14,7 @@ import BattleRecordsPage from "./components/BattleRecordsPage";
 import PlayerProfilePage from "./components/PlayerProfilePage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LayoutWrapper } from "./components/LayoutWrapper";
+import LicenseAdminPage from "./components/LicenseAdminPage";
 
 export default function App() {
   return (
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
+        <Route path="/admin/license" element={<LicenseAdminPage />} />
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>

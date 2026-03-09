@@ -1,15 +1,18 @@
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-// DEV MODE: 禁用登录验证，直接放行
-const DISABLE_AUTH = import.meta.env.DEV || true;
+/**
+ * 本地模式：默认启用，无需登录即可使用所有功能。
+ * 设置环境变量 VITE_LOCAL_MODE=false 可切换为云端登录模式。
+ */
+const LOCAL_MODE = import.meta.env.VITE_LOCAL_MODE !== "false";
 
 export function ProtectedRoute() {
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // DEV MODE: 跳过登录验证
-  if (DISABLE_AUTH) {
+  // 本地模式：跳过登录验证，直接放行
+  if (LOCAL_MODE) {
     return <Outlet />;
   }
 
