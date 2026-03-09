@@ -89,6 +89,7 @@ function runMigrations() {
       console.log("Migration: Index creation warning:", error);
     }
   }
+
 }
 
 export default db;

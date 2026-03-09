@@ -119,6 +119,54 @@ CREATE TABLE IF NOT EXISTS compare_list (
 CREATE INDEX IF NOT EXISTS idx_compare_list_item ON compare_list(item_id);
 CREATE INDEX IF NOT EXISTS idx_compare_list_parent ON compare_list(parent_type_id);
 
+CREATE TABLE IF NOT EXISTS battle_players (
+  id TEXT PRIMARY KEY,
+  role_name TEXT NOT NULL,
+  server TEXT NOT NULL DEFAULT '163',
+  source TEXT NOT NULL DEFAULT 'mock',
+  profile_hidden INTEGER DEFAULT 0,
+  last_synced_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  raw_profile TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS battle_history (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  player_id TEXT NOT NULL,
+  match_id TEXT NOT NULL,
+  mode TEXT,
+  hero TEXT,
+  rank INTEGER,
+  kills INTEGER,
+  damage INTEGER,
+  result TEXT,
+  played_at DATETIME NOT NULL,
+  raw_data TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (player_id) REFERENCES battle_players(id) ON DELETE CASCADE,
+  UNIQUE(player_id, match_id)
+);
+
+CREATE TABLE IF NOT EXISTS player_watchlist (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id TEXT NOT NULL,
+  player_id TEXT NOT NULL,
+  notes TEXT,
+  alert_enabled INTEGER DEFAULT 1,
+  last_notified_match_id TEXT,
+  added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+  FOREIGN KEY (player_id) REFERENCES battle_players(id) ON DELETE CASCADE,
+  UNIQUE(user_id, player_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_battle_players_name ON battle_players(role_name);
+CREATE INDEX IF NOT EXISTS idx_battle_history_player ON battle_history(player_id);
+CREATE INDEX IF NOT EXISTS idx_battle_history_played ON battle_history(played_at);
+CREATE INDEX IF NOT EXISTS idx_player_watchlist_user ON player_watchlist(user_id);
+CREATE INDEX IF NOT EXISTS idx_player_watchlist_player ON player_watchlist(player_id);
+
 -- ============================================
 -- User Authentication Tables
 -- ============================================

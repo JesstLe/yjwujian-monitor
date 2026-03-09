@@ -1,0 +1,5 @@
+# 防止 Git 对 SQLite 二进制文件进行换行符转换 (CRLF/LF)
+*.db binary
+*.db-journal binary
+*.db-wal binary
+*.db-shm binary

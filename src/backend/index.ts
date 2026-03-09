@@ -14,6 +14,7 @@ import settingsRouter from "./routes/settings";
 import monitorRouter from "./routes/monitor";
 import compareRouter from "./routes/compare";
 import authRouter from "./routes/auth";
+import battleRecordsRouter from "./routes/battle-records";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -36,6 +37,7 @@ app.use("/api/settings", settingsRouter);
 app.use("/api/monitor", monitorRouter);
 app.use("/api/compare", compareRouter);
 app.use("/api/auth", authRouter);
+app.use("/api/battle-records", battleRecordsRouter);
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
 });

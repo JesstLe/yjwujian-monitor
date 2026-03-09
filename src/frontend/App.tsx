@@ -10,6 +10,8 @@ import Compare3DPage from "./components/Compare3DPage";
 import LoginPage from "./components/LoginPage";
 import RegisterPage from "./components/RegisterPage";
 import VerifyEmailPage from "./components/VerifyEmailPage";
+import BattleRecordsPage from "./components/BattleRecordsPage";
+import PlayerProfilePage from "./components/PlayerProfilePage";
 import { ProtectedRoute } from "./components/ProtectedRoute";
 import { LayoutWrapper } from "./components/LayoutWrapper";
 
@@ -32,6 +34,11 @@ export default function App() {
             <Route path="/item/:id" element={<ItemDetail />} />
             <Route path="/compare" element={<ComparePage />} />
             <Route path="/compare/3d" element={<Compare3DPage />} />
+            <Route path="/battle-records" element={<BattleRecordsPage />} />
+            <Route
+              path="/battle-records/player/:id"
+              element={<PlayerProfilePage />}
+            />
           </Route>
         </Route>
       </Routes>

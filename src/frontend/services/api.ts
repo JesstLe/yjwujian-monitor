@@ -6,6 +6,9 @@ import type {
   Alert,
   PriceHistoryPoint,
   CompareItem,
+  BattlePlayer,
+  BattleMatch,
+  PlayerWatchlistEntry,
   User,
   AuthResponse,
 } from "@shared/types";
@@ -400,6 +403,37 @@ export const api = {
       });
       return response.json();
     },
+  },
+
+  battleRecords: {
+    search: (params: { q?: string; page?: number; limit?: number }) => {
+      const searchParams = new URLSearchParams();
+      if (params.q) searchParams.append("q", params.q);
+      if (params.page) searchParams.append("page", String(params.page));
+      if (params.limit) searchParams.append("limit", String(params.limit));
+      return fetchApiWithMeta<BattlePlayer[]>(
+        `/battle-records/search?${searchParams}`,
+      );
+    },
+
+    getPlayer: (id: string) => fetchApi<BattlePlayer>(`/battle-records/player/${id}`),
+
+    getMatches: (id: string, page: number = 1, limit: number = 20) =>
+      fetchApiWithMeta<BattleMatch[]>(
+        `/battle-records/player/${id}/matches?page=${page}&limit=${limit}`,
+      ),
+
+    getWatchlist: () =>
+      fetchApi<PlayerWatchlistEntry[]>("/battle-records/watchlist"),
+
+    addWatch: (data: { playerId: string; notes?: string }) =>
+      fetchApi<PlayerWatchlistEntry>("/battle-records/watchlist", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
+
+    removeWatch: (id: number) =>
+      fetchApi<void>(`/battle-records/watchlist/${id}`, { method: "DELETE" }),
   },
 };
 

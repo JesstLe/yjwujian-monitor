@@ -89,6 +89,27 @@ const Icons = {
       />
     </svg>
   ),
+  battleRecords: (
+    <svg
+      className="w-5 h-5"
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2"
+      />
+      <path
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={2}
+        d="M9 12l2 2 4-4m5-5l-8 8-4-4"
+      />
+    </svg>
+  ),
   logo: (
     <svg className="w-8 h-8" viewBox="0 0 32 32" fill="none">
       <rect
@@ -169,6 +190,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
     { to: "/", label: "仪表盘", icon: Icons.dashboard },
     { to: "/search", label: "搜索", icon: Icons.search },
     { to: "/watchlist", label: "监控列表", icon: Icons.watchlist },
+    { to: "/battle-records", label: "战绩助手", icon: Icons.battleRecords },
     { to: "/compare", label: "对比", icon: Icons.compare },
     { to: "/settings", label: "设置", icon: Icons.settings },
   ];

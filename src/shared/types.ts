@@ -226,3 +226,38 @@ export interface ResetPasswordRequest {
 export interface ForgotPasswordRequest {
   email: string;
 }
+
+export interface BattlePlayer {
+  id: string;
+  roleName: string;
+  server: string;
+  source: string;
+  profileHidden: boolean;
+  lastSyncedAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface BattleMatch {
+  id: number;
+  playerId: string;
+  matchId: string;
+  mode: string;
+  hero: string;
+  rank: number;
+  kills: number;
+  damage: number;
+  result: "win" | "top10" | "normal";
+  playedAt: Date;
+}
+
+export interface PlayerWatchlistEntry {
+  id: number;
+  userId: string;
+  playerId: string;
+  notes: string | null;
+  alertEnabled: boolean;
+  lastNotifiedMatchId: string | null;
+  addedAt: Date;
+  player?: BattlePlayer;
+}
