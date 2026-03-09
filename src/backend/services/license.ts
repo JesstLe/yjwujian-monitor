@@ -16,14 +16,11 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getMachineCode } from "../utils/machine-code";
+import { LICENSE_FILE } from "../utils/data-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// 激活信息存储路径（与数据库同级）
-const LICENSE_DIR = path.join(__dirname, "../../../data");
-const LICENSE_FILE = path.join(LICENSE_DIR, "license.json");
-
-// 内置公钥路径（打包进 exe）
+// 内置公钥路径（打包进应用）
 const PUBLIC_KEY_PATH = path.join(__dirname, "../../../keys/public.pem");
 
 export interface LicenseInfo {
@@ -187,8 +184,9 @@ class LicenseService {
 
     private saveLicense(licenseKey: string, info: LicenseInfo): void {
         try {
-            if (!fs.existsSync(LICENSE_DIR)) {
-                fs.mkdirSync(LICENSE_DIR, { recursive: true });
+            const dir = path.dirname(LICENSE_FILE);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
             }
             const data: StoredLicense = { license: licenseKey, info };
             fs.writeFileSync(LICENSE_FILE, JSON.stringify(data, null, 2), "utf-8");

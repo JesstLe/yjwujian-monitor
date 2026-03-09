@@ -117,7 +117,7 @@ function createMainWindow(): void {
         height: 900,
         minWidth: 1024,
         minHeight: 680,
-        title: "永劫无间 · 藏宝阁监控",
+        title: "永劫无间 · 藏宝阁助手",
         webPreferences: {
             nodeIntegration: false,
             contextIsolation: true,
@@ -146,6 +146,9 @@ function createMainWindow(): void {
 // ---------- 应用生命周期 ----------
 
 app.whenReady().then(async () => {
+    // 将 Electron 用户数据目录注入环境变量，供后端使用
+    process.env.APP_DATA_DIR = app.getPath("userData");
+
     // 生产模式下启动内嵌的 Express 后端
     if (process.env.NODE_ENV !== "development") {
         try {

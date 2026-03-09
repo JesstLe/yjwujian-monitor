@@ -2,17 +2,12 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
+import { DB_PATH, ensureUserDataDir } from "../utils/data-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const DB_PATH =
-  process.env.DATABASE_PATH || path.join(__dirname, "../../../data/monitor.db");
-
 function ensureDataDir() {
-  const dataDir = path.dirname(DB_PATH);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  ensureUserDataDir();
 }
 
 ensureDataDir();
