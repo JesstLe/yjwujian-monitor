@@ -1,0 +1,29 @@
+[package]
+name = "ui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "ui"
+path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Leptos
+leptos = { workspace = true }
+leptos_router = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# UUID with WASM support
+uuid = { version = "1", features = ["v4", "serde", "js"] }
+
+# WASM
+getrandom = { workspace = true }
+
+# Panic hook for better error messages
+console_error_panic_hook = "0.1"

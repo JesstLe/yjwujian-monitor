@@ -16,7 +16,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { getMachineCode } from "../utils/machine-code";
-import { LICENSE_FILE } from "../utils/data-paths";
+import { getLicenseFilePath } from "../utils/data-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -173,9 +173,10 @@ class LicenseService {
      */
     deactivate(): void {
         this.cachedLicense = null;
+        const licenseFile = getLicenseFilePath();
         try {
-            if (fs.existsSync(LICENSE_FILE)) {
-                fs.unlinkSync(LICENSE_FILE);
+            if (fs.existsSync(licenseFile)) {
+                fs.unlinkSync(licenseFile);
             }
         } catch {
             // 忽略删除失败
@@ -183,24 +184,26 @@ class LicenseService {
     }
 
     private saveLicense(licenseKey: string, info: LicenseInfo): void {
+        const licenseFile = getLicenseFilePath();
         try {
-            const dir = path.dirname(LICENSE_FILE);
+            const dir = path.dirname(licenseFile);
             if (!fs.existsSync(dir)) {
                 fs.mkdirSync(dir, { recursive: true });
             }
             const data: StoredLicense = { license: licenseKey, info };
-            fs.writeFileSync(LICENSE_FILE, JSON.stringify(data, null, 2), "utf-8");
+            fs.writeFileSync(licenseFile, JSON.stringify(data, null, 2), "utf-8");
         } catch (error) {
             console.error("保存激活信息失败:", error);
         }
     }
 
     private loadLicense(): StoredLicense | null {
+        const licenseFile = getLicenseFilePath();
         try {
-            if (!fs.existsSync(LICENSE_FILE)) {
+            if (!fs.existsSync(licenseFile)) {
                 return null;
             }
-            const raw = fs.readFileSync(LICENSE_FILE, "utf-8");
+            const raw = fs.readFileSync(licenseFile, "utf-8");
             return JSON.parse(raw) as StoredLicense;
         } catch {
             return null;

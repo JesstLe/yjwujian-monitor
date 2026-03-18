@@ -4,6 +4,12 @@ node_modules/
 # Build output
 dist/
 
+# Rust
+src-rust/target/
+
+# AI tools
+.sisyphus/
+
 # Environment files
 .env
 .env.local

@@ -4,6 +4,7 @@ import api from "../services/api";
 import type { CompareItem } from "@shared/types";
 import ControlledModelView, { ControlledModelViewRef } from "./ControlledModelView";
 import JSZip from "jszip";
+import { downloadBlob } from "../services/download";
 
 const MIN_COMPARE_SCALE = 1;
 const MAX_COMPARE_SCALE = 8;
@@ -262,18 +263,7 @@ function ImagePreviewModal({
       const proxyUrl = getProxyImageUrl(imageUrl);
       const response = await fetch(proxyUrl);
       const blob = await response.blob();
-      // 使用原生 <a> 标签下载
-      const dlUrl = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = dlUrl;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(dlUrl);
-      }, 1000);
+      await downloadBlob(blob, fileName);
     } catch (error) {
       console.error("保存失败:", error);
       // 降级：在新标签页打开代理 URL
@@ -545,19 +535,7 @@ export default function Compare3DPage() {
       const content = await zip.generateAsync({ type: 'blob', mimeType: 'application/zip' });
       const fileName = `compare_${Math.round(angle)}deg_${Date.now()}.zip`;
 
-      // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
-      const url = URL.createObjectURL(content);
-      const a = document.createElement('a');
-      a.style.display = 'none';
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
+      await downloadBlob(content, fileName);
     } catch (error) {
       console.error('导出失败:', error);
       alert('导出失败，请重试');

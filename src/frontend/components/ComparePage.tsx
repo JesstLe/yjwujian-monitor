@@ -5,6 +5,7 @@ import type { Item, CompareItem } from "@shared/types";
 import CapturePreview from "./CapturePreview";
 import JSZip from "jszip";
 import StarGridSlots from "./StarGridSlots";
+import { downloadBlob } from "../services/download";
 
 // Icons
 const SearchIcon = () => (
@@ -369,20 +370,7 @@ export default function ComparePage() {
           ? `${itemsWithCapture[0].name.replace(/[^\w\u4e00-\u9fa5]/g, "_")}_3dframes.zip`
           : `compare_3dframes_selected.zip`;
 
-      // 使用原生 <a> 标签下载，避免 saveAs 文件名异常
-      const url = URL.createObjectURL(content);
-      const a = document.createElement("a");
-      a.style.display = "none";
-      a.href = url;
-      a.download = fileName;
-      document.body.appendChild(a);
-      a.click();
-
-      // 延迟释放 URL，防止部分浏览器打断下载导致文件名丢失或下载失败
-      setTimeout(() => {
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      }, 1000);
+      await downloadBlob(content, fileName);
     } catch (error) {
       console.error("导出 ZIP 失败:", error);
       alert("导出图片打包失败，请重试");

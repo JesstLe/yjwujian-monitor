@@ -2,33 +2,38 @@ import Database from "better-sqlite3";
 import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
-import { DB_PATH, ensureUserDataDir } from "../utils/data-paths";
+import { ensureUserDataDir, getDbPath } from "../utils/data-paths";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+type DbInstance = InstanceType<typeof Database>;
+
+let dbInstance: DbInstance | null = null;
+let databaseInitialized = false;
 
 function ensureDataDir() {
   ensureUserDataDir();
 }
 
-ensureDataDir();
-
 // 清理残留的 WAL/SHM 文件（防止跨平台同步导致的不一致）
 function cleanStaleWalFiles() {
-  const walPath = DB_PATH + "-wal";
-  const shmPath = DB_PATH + "-shm";
+  const dbPath = getDbPath();
+  const walPath = dbPath + "-wal";
+  const shmPath = dbPath + "-shm";
   // 如果数据库文件不存在但 WAL/SHM 存在，说明是残留文件
-  if (!fs.existsSync(DB_PATH)) {
+  if (!fs.existsSync(dbPath)) {
     if (fs.existsSync(walPath)) fs.unlinkSync(walPath);
     if (fs.existsSync(shmPath)) fs.unlinkSync(shmPath);
   }
 }
 
 // 启动时完整性检查，损坏则自动备份并重建
-function openDatabaseSafe(): InstanceType<typeof Database> {
+function openDatabaseSafe(): DbInstance {
   cleanStaleWalFiles();
+  const dbPath = getDbPath();
 
   try {
-    const database = new Database(DB_PATH);
+    const database = new Database(dbPath);
     database.pragma("journal_mode = WAL");
 
     // 执行完整性检查
@@ -45,7 +50,7 @@ function openDatabaseSafe(): InstanceType<typeof Database> {
 
     // 备份损坏的文件
     const backupSuffix = `.corrupted.${Date.now()}`;
-    const filesToBackup = [DB_PATH, DB_PATH + "-wal", DB_PATH + "-shm"];
+    const filesToBackup = [dbPath, dbPath + "-wal", dbPath + "-shm"];
     for (const file of filesToBackup) {
       if (fs.existsSync(file)) {
         fs.renameSync(file, file + backupSuffix);
@@ -54,50 +59,82 @@ function openDatabaseSafe(): InstanceType<typeof Database> {
     }
 
     // 创建全新的数据库
-    const freshDb = new Database(DB_PATH);
+    const freshDb = new Database(dbPath);
     freshDb.pragma("journal_mode = WAL");
     console.log("Fresh database created successfully.");
     return freshDb;
   }
 }
 
-export const db = openDatabaseSafe();
+function getOrCreateDb(): DbInstance {
+  if (!dbInstance) {
+    ensureDataDir();
+    dbInstance = openDatabaseSafe();
+  }
+
+  return dbInstance;
+}
+
+export function getDb(): DbInstance {
+  return getOrCreateDb();
+}
+
+export const db: DbInstance = new Proxy({} as DbInstance, {
+  get(_target, property, receiver) {
+    const targetDb = getOrCreateDb() as unknown as object;
+    const value = Reflect.get(targetDb, property, receiver);
+    if (typeof value === "function") {
+      return value.bind(targetDb);
+    }
+    return value;
+  },
+  set(_target, property, value, receiver) {
+    const targetDb = getOrCreateDb() as unknown as object;
+    return Reflect.set(targetDb, property, value, receiver);
+  },
+});
 
 export function initializeDatabase() {
+  if (databaseInitialized) {
+    return;
+  }
+
+  const database = getOrCreateDb();
   const schemaPath = path.join(__dirname, "schema.sql");
   const schema = fs.readFileSync(schemaPath, "utf-8");
-  db.exec(schema);
+  database.exec(schema);
 
   // 本地模式下自动创建默认用户，避免外键约束失败
-  ensureLocalUser();
+  ensureLocalUser(database);
 
   // Run migrations for existing databases
-  runMigrations();
+  runMigrations(database);
+  databaseInitialized = true;
 }
 
 /**
  * 确保本地模式的 dev-user 存在于 users 表中，
  * 否则 watchlist/groups/alerts 等表的外键约束会失败。
  */
-function ensureLocalUser() {
+function ensureLocalUser(database: DbInstance) {
   const LOCAL_MODE = process.env.LOCAL_MODE !== "false";
   if (!LOCAL_MODE) return;
 
-  db.exec(`
+  database.exec(`
     INSERT OR IGNORE INTO users (id, email, username, password_hash, email_verified)
     VALUES ('dev-user', 'local@localhost', '本地用户', '', 1)
   `);
 }
 
-function runMigrations() {
+function runMigrations(database: DbInstance) {
   // Migration: Add variation_info column if it doesn't exist
-  const columns = db.prepare("PRAGMA table_info(items)").all() as {
+  const columns = database.prepare("PRAGMA table_info(items)").all() as {
     name: string;
   }[];
   const hasVariationInfo = columns.some((col) => col.name === "variation_info");
 
   if (!hasVariationInfo) {
-    db.exec("ALTER TABLE items ADD COLUMN variation_info TEXT");
+    database.exec("ALTER TABLE items ADD COLUMN variation_info TEXT");
     console.log("Migration: Added variation_info column to items table");
   }
 
@@ -105,14 +142,14 @@ function runMigrations() {
   const tablesNeedingUserId = ["groups", "watchlist", "alerts", "compare_list"];
 
   for (const tableName of tablesNeedingUserId) {
-    const tableColumns = db
+    const tableColumns = database
       .prepare(`PRAGMA table_info(${tableName})`)
       .all() as { name: string }[];
     const hasUserId = tableColumns.some((col) => col.name === "user_id");
 
     if (!hasUserId) {
       try {
-        db.exec(
+        database.exec(
           `ALTER TABLE ${tableName} ADD COLUMN user_id TEXT REFERENCES users(id) ON DELETE SET NULL`,
         );
         console.log(`Migration: Added user_id column to ${tableName} table`);
@@ -126,10 +163,10 @@ function runMigrations() {
     }
   }
 
-  db.exec(
+  database.exec(
     "CREATE INDEX IF NOT EXISTS idx_alerts_watchlist_resolved ON alerts(watchlist_id, is_resolved)",
   );
-  db.exec(
+  database.exec(
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_alerts_unique_unresolved ON alerts(watchlist_id) WHERE is_resolved = 0",
   );
 
@@ -143,12 +180,11 @@ function runMigrations() {
 
   for (const stmt of indexStatements) {
     try {
-      db.exec(stmt);
+      database.exec(stmt);
     } catch (error) {
       console.log("Migration: Index creation warning:", error);
     }
   }
-
 }
 
 export default db;

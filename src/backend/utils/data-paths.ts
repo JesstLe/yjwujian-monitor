@@ -22,7 +22,7 @@ const APP_NAME = "yjwujian-monitor";
  * 否则根据操作系统自动计算。
  * 开发模式下使用项目本地的 data/ 目录。
  */
-function getUserDataDir(): string {
+export function getUserDataDir(): string {
     // 1. 环境变量优先（Electron 注入或手动指定）
     if (process.env.APP_DATA_DIR) {
         return process.env.APP_DATA_DIR;
@@ -48,24 +48,28 @@ function getUserDataDir(): string {
     }
 }
 
-// 用户数据根目录
-export const USER_DATA_DIR = getUserDataDir();
+export function getDbPath(): string {
+    return process.env.DATABASE_PATH || path.join(getUserDataDir(), "monitor.db");
+}
 
-// 数据库文件路径
-export const DB_PATH = process.env.DATABASE_PATH || path.join(USER_DATA_DIR, "monitor.db");
+export function getLicenseFilePath(): string {
+    return path.join(getUserDataDir(), "license.json");
+}
 
-// 激活信息文件路径
-export const LICENSE_FILE = path.join(USER_DATA_DIR, "license.json");
-
-// 密钥目录（公钥打包进应用，私钥不分发）
-export const KEYS_DIR = path.join(USER_DATA_DIR, "..", "..", "keys"); // 开发模式回退
+export function getKeysDir(): string {
+    return path.join(getUserDataDir(), "..", "..", "keys");
+}
 
 /**
  * 确保数据目录存在
  */
-export function ensureUserDataDir(): void {
-    if (!fs.existsSync(USER_DATA_DIR)) {
-        fs.mkdirSync(USER_DATA_DIR, { recursive: true });
-        console.log(`Created user data directory: ${USER_DATA_DIR}`);
+export function ensureUserDataDir(): string {
+    const userDataDir = getUserDataDir();
+
+    if (!fs.existsSync(userDataDir)) {
+        fs.mkdirSync(userDataDir, { recursive: true });
+        console.log(`Created user data directory: ${userDataDir}`);
     }
+
+    return userDataDir;
 }

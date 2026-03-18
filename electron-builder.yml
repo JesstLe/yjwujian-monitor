@@ -1,0 +1,26 @@
+appId: com.yjwujian.monitor
+productName: YJWJ CBG Monitor
+directories:
+  output: release
+files:
+  - dist/frontend/**
+  - dist/backend/**
+  - dist/shared/**
+  - dist-electron/**
+  - package.json
+asar: true
+asarUnpack:
+  - node_modules/better-sqlite3/**
+mac:
+  target:
+    - dmg
+    - zip
+win:
+  target:
+    - nsis
+    - portable
+linux:
+  target:
+    - AppImage
+extraMetadata:
+  main: dist-electron/main.cjs

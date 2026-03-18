@@ -24,6 +24,6 @@
       "@shared/*": ["./src/shared/*"]
     }
   },
-  "include": ["src/**/*", "tests/**/*"],
+  "include": ["src/**/*", "tests/**/*", "electron/**/*"],
   "exclude": ["node_modules", "dist"]
 }

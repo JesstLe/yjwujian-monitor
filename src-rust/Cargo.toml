@@ -1,0 +1,69 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/shared",
+    "crates/data",
+    "crates/net",
+    "crates/core",
+    "crates/notify",
+    "crates/app",
+    "crates/ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Developer"]
+license = "MIT"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1", features = ["full"] }
+
+# Web framework (for Tauri commands HTTP server if needed)
+axum = "0.7"
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+# SQLite
+rusqlite = { version = "0.31", features = ["bundled"] }
+
+# HTTP client
+reqwest = { version = "0.12", features = ["json", "cookies"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.8"
+
+# UUID
+uuid = { version = "1", features = ["v4", "serde"] }
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Async traits
+async-trait = "0.1"
+
+# Leptos
+leptos = "0.7"
+leptos_router = "0.7"
+
+# Tauri
+tauri = { version = "2.10.3", features = [] }
+tauri-plugin-shell = "2"
+tauri-plugin-dialog = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+
+# WASM specific
+getrandom = { version = "0.2", features = ["js"] }

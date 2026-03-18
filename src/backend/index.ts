@@ -3,6 +3,8 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import type { AddressInfo } from "node:net";
+import type { Server } from "node:http";
 import cookieParser from "cookie-parser";
 import { initializeDatabase } from "./db/index";
 import { startMonitor } from "./services/monitor";
@@ -19,10 +21,28 @@ import licenseRouter from "./routes/license";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const PORT = process.env.PORT || 3100;
 const NODE_ENV = process.env.NODE_ENV || "development";
+const DEFAULT_PORT = 3100;
 
-initializeDatabase();
+let server: Server | null = null;
+let monitorStarted = false;
+
+function parsePort(value: string | undefined): number | null {
+  if (!value) {
+    return null;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    return null;
+  }
+
+  return parsed;
+}
+
+export function resolveServerPort(): number {
+  return parsePort(process.env.PORT) ?? DEFAULT_PORT;
+}
 
 const app = express();
 
@@ -51,9 +71,59 @@ if (NODE_ENV === "production") {
   });
 }
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  startMonitor();
-});
+export async function startServer(port = resolveServerPort()): Promise<Server> {
+  if (server) {
+    return server;
+  }
+
+  initializeDatabase();
+
+  return await new Promise<Server>((resolve, reject) => {
+    const listeningServer = app.listen(port, () => {
+      console.log(`Server running on http://localhost:${port}`);
+      if (!monitorStarted) {
+        startMonitor();
+        monitorStarted = true;
+      }
+
+      server = listeningServer;
+      resolve(listeningServer);
+    });
+
+    listeningServer.on("error", (error) => {
+      reject(error);
+    });
+  });
+}
+
+export function getListeningPort(targetServer?: Server): number | null {
+  const serverToInspect = targetServer ?? server;
+  if (!serverToInspect) {
+    return null;
+  }
+
+  const address = serverToInspect.address();
+  if (!address || typeof address === "string") {
+    return null;
+  }
+
+  return (address as AddressInfo).port;
+}
+
+function isDirectExecution(): boolean {
+  const entryFile = process.argv[1];
+  if (!entryFile) {
+    return false;
+  }
+
+  return path.resolve(entryFile) === fileURLToPath(import.meta.url);
+}
+
+if (isDirectExecution()) {
+  startServer().catch((error: unknown) => {
+    console.error("Failed to start backend server:", error);
+    process.exit(1);
+  });
+}
 
 export default app;

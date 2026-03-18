@@ -11,6 +11,8 @@
  *   pnpm add -D electron-builder
  */
 
+import { writeFile } from "node:fs/promises";
+
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 let electron: typeof import("electron");
 let electronUpdater: typeof import("electron-updater");
@@ -25,8 +27,29 @@ try {
     process.exit(1);
 }
 
-const { app, BrowserWindow, dialog } = electron;
+const { app, BrowserWindow, dialog, ipcMain, shell } = electron;
 const { autoUpdater } = electronUpdater;
+
+const DEFAULT_BACKEND_PORT = 3100;
+const HEALTH_CHECK_TIMEOUT_MS = 30_000;
+const HEALTH_CHECK_INTERVAL_MS = 400;
+
+type BackendModule = {
+    startServer: () => Promise<unknown>;
+    getListeningPort: (server: unknown) => number | undefined;
+    resolveServerPort: () => number | undefined;
+};
+
+interface SaveFileRequest {
+    defaultFileName: string;
+    buffer: Uint8Array;
+}
+
+interface SaveFileResponse {
+    canceled: boolean;
+    filePath?: string;
+    error?: string;
+}
 
 // ---------- 自动更新配置 ----------
 
@@ -110,8 +133,81 @@ function setupAutoUpdater(): void {
 // ---------- 窗口管理 ----------
 
 let mainWindow: InstanceType<typeof BrowserWindow> | null = null;
+let rendererUrl = "";
 
-function createMainWindow(): void {
+function getAppServerUrl(port: number): string {
+    return `http://127.0.0.1:${port}`;
+}
+
+function shouldOpenExternally(targetUrl: string, appOrigin: string): boolean {
+    try {
+        const parsed = new URL(targetUrl);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+            return false;
+        }
+        return parsed.origin !== appOrigin;
+    } catch {
+        return false;
+    }
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+        setTimeout(resolve, ms);
+    });
+}
+
+async function waitForHealth(
+    serverUrl: string,
+    timeoutMs = HEALTH_CHECK_TIMEOUT_MS,
+): Promise<void> {
+    const healthUrl = `${serverUrl}/api/health`;
+    const deadline = Date.now() + timeoutMs;
+
+    while (Date.now() < deadline) {
+        let isHealthy = false;
+        try {
+            const response = await fetch(healthUrl);
+            isHealthy = response.ok;
+        } catch (_error: unknown) {
+            isHealthy = false;
+        }
+
+        if (isHealthy) {
+            return;
+        }
+
+        await sleep(HEALTH_CHECK_INTERVAL_MS);
+    }
+
+    throw new Error(`Backend health check timeout: ${healthUrl}`);
+}
+
+async function startBackend(): Promise<string> {
+    const backendEntry = "../dist/backend/index.js";
+    const backendModule = (await import(backendEntry)) as BackendModule;
+    const server = await backendModule.startServer();
+    const port =
+        backendModule.getListeningPort(server) ??
+        backendModule.resolveServerPort() ??
+        DEFAULT_BACKEND_PORT;
+    const appServerUrl = getAppServerUrl(port);
+    await waitForHealth(appServerUrl);
+
+    return appServerUrl;
+}
+
+function resolveRendererUrl(isDev: boolean, appServerUrl: string): string {
+    if (isDev) {
+        return process.env.ELECTRON_RENDERER_URL || "http://localhost:5173";
+    }
+
+    return appServerUrl;
+}
+
+function createMainWindow(url: string, isDev: boolean): void {
+    const appOrigin = new URL(url).origin;
+
     mainWindow = new BrowserWindow({
         width: 1400,
         height: 900,
@@ -126,16 +222,26 @@ function createMainWindow(): void {
         autoHideMenuBar: true,
     });
 
-    // 开发模式加载 Vite 开发服务器，生产模式加载打包文件
-    const isDev = process.env.NODE_ENV === "development";
+    mainWindow.webContents.setWindowOpenHandler(({ url: targetUrl }: { url: string }) => {
+        if (shouldOpenExternally(targetUrl, appOrigin)) {
+            void shell.openExternal(targetUrl);
+        }
+        return { action: "deny" };
+    });
+
+    mainWindow.webContents.on("will-navigate", (event, targetUrl) => {
+        if (shouldOpenExternally(targetUrl, appOrigin)) {
+            event.preventDefault();
+            void shell.openExternal(targetUrl);
+        }
+    });
+
+    mainWindow.loadURL(url).catch((error: unknown) => {
+        console.error("Failed to load renderer URL:", error);
+    });
 
     if (isDev) {
-        // 开发模式：前端由 Vite 开发服务器提供
-        mainWindow.loadURL("http://localhost:5173");
         mainWindow.webContents.openDevTools();
-    } else {
-        // 生产模式：Express 后端同时提供前端静态文件
-        mainWindow.loadURL("http://localhost:3000");
     }
 
     mainWindow.on("closed", () => {
@@ -146,21 +252,57 @@ function createMainWindow(): void {
 // ---------- 应用生命周期 ----------
 
 app.whenReady().then(async () => {
+    ipcMain.handle(
+        "desktop:save-file",
+        async (_event: unknown, request: SaveFileRequest): Promise<SaveFileResponse> => {
+            try {
+                const { canceled, filePath } = await dialog.showSaveDialog({
+                    defaultPath: request.defaultFileName,
+                });
+
+                if (canceled || !filePath) {
+                    return { canceled: true };
+                }
+
+                await writeFile(filePath, Buffer.from(request.buffer));
+                return { canceled: false, filePath };
+            } catch (error: unknown) {
+                const message =
+                    error instanceof Error ? error.message : "Failed to save file";
+                return {
+                    canceled: true,
+                    error: message,
+                };
+            }
+        },
+    );
+
     // 将 Electron 用户数据目录注入环境变量，供后端使用
     process.env.APP_DATA_DIR = app.getPath("userData");
 
+    const isDev = process.env.NODE_ENV === "development";
+    let appServerUrl = getAppServerUrl(DEFAULT_BACKEND_PORT);
+
     // 生产模式下启动内嵌的 Express 后端
-    if (process.env.NODE_ENV !== "development") {
+    if (!isDev) {
         try {
-            await import("../src/backend/index.js");
-            console.log("Backend server started.");
+            appServerUrl = await startBackend();
+            console.log(`Backend server ready at ${appServerUrl}`);
         } catch (error: unknown) {
             console.error("Failed to start backend:", error);
+            dialog.showErrorBox(
+                "后端启动失败",
+                "本地服务启动失败，应用将退出。请检查日志后重试。",
+            );
+            app.quit();
+            return;
         }
     }
 
+    rendererUrl = resolveRendererUrl(isDev, appServerUrl);
+
     // 创建主窗口
-    createMainWindow();
+    createMainWindow(rendererUrl, isDev);
 
     // 启动后检查更新（延迟 3 秒，等窗口加载完）
     setTimeout(() => {
@@ -174,7 +316,8 @@ app.whenReady().then(async () => {
 // macOS: 点击 Dock 图标时重新创建窗口
 app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-        createMainWindow();
+        const isDev = process.env.NODE_ENV === "development";
+        createMainWindow(rendererUrl, isDev);
     }
 });
 
